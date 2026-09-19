@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Monitor",
+  "version": "0.1.0",
+  "description": "Tells the local focus-monitor daemon which site is in your active tab. Sends only the site name and page title, never the full URL, and only to 127.0.0.1.",
+  "permissions": ["tabs"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": {"service_worker": "background.js"}
+}

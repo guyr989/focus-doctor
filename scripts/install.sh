@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NODE="$(command -v node)"
 
-cd "$ROOT" && pnpm install --silent && pnpm build --silent
+cd "$ROOT" && pnpm -s install && pnpm -s build
 
 mkdir -p ~/.local/share/gnome-shell/extensions ~/.config/systemd/user ~/.local/bin
 ln -sfn "$ROOT/packages/gnome-extension/focus-monitor@guyr989" ~/.local/share/gnome-shell/extensions/focus-monitor@guyr989

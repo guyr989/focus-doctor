@@ -7,6 +7,8 @@ export const config = {
   resetAfterOnTaskSeconds: 60,
   thresholds: process.env.FOCUS_THRESHOLDS?.split(',').map(Number) ?? [120, 300, 600],
   cooldownSeconds: 300,
+  idleAfterSeconds: 90,
+  browserPort: 47113,
 };
 
 export type Config = typeof config;

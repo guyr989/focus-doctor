@@ -4,13 +4,18 @@ import {DriftEngine} from './drift/engine.js';
 import {Escalator} from './drift/escalator.js';
 import type {Store} from './store/db.js';
 import {activeTask} from './tasks/queue.js';
-import type {Notifier, Signal, SignalSource, Task} from './types.js';
+import type {IdleMonitor, Notifier, Signal, SignalSource, Tab, TabSource, Task} from './types.js';
+
+const BROWSERS = ['chrome', 'chromium', 'brave', 'firefox', 'edge'];
+const isBrowser = (app: string | null) => !!app && BROWSERS.some(b => app.toLowerCase().includes(b));
 
 export interface DaemonDeps {
   source: SignalSource;
   notifier: Notifier;
   store: Store;
   config: Config;
+  tabs?: TabSource;
+  idle?: IdleMonitor;
   now?: () => number;
   log?: (msg: string) => void;
 }
@@ -20,7 +25,8 @@ export class Daemon {
   private readonly escalator: Escalator;
   private readonly now: () => number;
   private readonly log: (msg: string) => void;
-  private signal: Signal | null = null;
+  private window: Signal | null = null;
+  private tab: Tab | null = null;
   private timer: NodeJS.Timeout | null = null;
 
   constructor(private readonly deps: DaemonDeps) {
@@ -31,42 +37,53 @@ export class Daemon {
   }
 
   async start(): Promise<void> {
-    await this.deps.source.start(s => this.onSignal(s));
-    this.timer = setInterval(() => this.tick(), this.deps.config.heartbeatSeconds * 1000);
+    await this.deps.source.start(s => {
+      this.window = s;
+      void this.tick();
+    });
+    await this.deps.tabs?.start(t => {
+      this.tab = t;
+      void this.tick();
+    });
+    this.timer = setInterval(() => void this.tick(), this.deps.config.heartbeatSeconds * 1000);
     this.log('focus-monitord started');
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    await this.deps.tabs?.stop();
     await this.deps.source.stop();
   }
 
-  private onSignal(s: Signal): void {
-    this.signal = s;
-    this.tick();
+  private currentSignal(): Signal | null {
+    if (!this.window) return null;
+    if (!isBrowser(this.window.app) || !this.tab) return this.window;
+    return {...this.window, host: this.tab.host, pageTitle: this.tab.pageTitle};
   }
 
-  private tick(): void {
+  private async tick(): Promise<void> {
     const now = this.now();
     const task = activeTask(this.deps.store.tasks());
-    if (!task || !this.signal) {
+    const signal = this.currentSignal();
+    const idleMs = (await this.deps.idle?.idleMs()) ?? 0;
+    if (!task || !signal || idleMs > this.deps.config.idleAfterSeconds * 1000) {
       this.engine.update('idle', now);
       return;
     }
-    const verdict = matchRules(this.signal, this.deps.store.rules(), task.id);
+    const verdict = matchRules(signal, this.deps.store.rules(), task.id);
     const drift = this.engine.update(verdict, now);
     this.deps.store.recordSample({
       ts: Math.floor(now / 1000),
-      app: this.signal.app,
-      title: this.signal.title,
-      host: this.signal.host ?? null,
+      app: signal.app,
+      title: signal.title,
+      host: signal.host ?? null,
       verdict,
       taskId: task.id,
       driftSeconds: drift,
     });
     const level = this.escalator.evaluate(drift, now);
-    if (level) void this.intervene(level, task, drift);
+    if (level) await this.intervene(level, task, drift);
   }
 
   private async intervene(level: number, task: Task, drift: number): Promise<void> {

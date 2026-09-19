@@ -41,3 +41,18 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Chosen:** `FOCUS_THRESHOLDS=4,8,12 FOCUS_HEARTBEAT=2 FOCUS_DB=...` override defaults.
 - **Why:** Lets the end-to-end smoke test run in 20 s instead of 10 min, and isolates a scratch database.
 - **Switch cost:** P5 replaces this with the settings store; env stays as an override.
+
+## D8 — Browser extension posts over HTTP, not a WebSocket
+- **Chosen:** MV3 service worker does `fetch POST http://127.0.0.1:47113/tab` on every tab change.
+- **Rejected:** persistent WebSocket (MV3 kills idle service workers, so the socket needs keep-alive tricks); native messaging host (snap-packaged Brave/Firefox make it painful); reading Chrome's history DB (locked while open, doesn't know the *active* tab).
+- **Why:** Stateless, ~20 lines, fails silently when the daemon is down, no keep-alive logic.
+- **Switch cost:** `packages/daemon/src/ingest/browser.ts` implements `TabSource`; `packages/browser-extension/background.js` is the other end.
+- **Privacy:** only hostname + page title are sent; the full URL never leaves the browser.
+
+## D9 — Idle detection by polling `GetIdletime` each tick
+- **Chosen:** Ask Mutter's IdleMonitor for idle milliseconds on every 30 s heartbeat; over 90 s idle counts as away.
+- **Rejected:** `AddIdleWatch` signals (event-driven, but two extra signal handlers and reset bookkeeping for no gain at a 30 s cadence).
+- **Switch cost:** `IdleMonitor` port, one method.
+
+## D10 — Browser fields only attach while a browser is focused
+- Tab info arrives independently of window focus. The daemon merges the last-known tab into the signal only when the focused window is a browser, so a stale tab can never be blamed while you're in another app.

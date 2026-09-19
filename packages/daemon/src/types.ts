@@ -33,3 +33,17 @@ export interface SignalSource {
 export interface Notifier {
   flash(text: string): Promise<void>;
 }
+
+export interface Tab {
+  host: string | null;
+  pageTitle: string | null;
+}
+
+export interface TabSource {
+  start(onTab: (t: Tab) => void): Promise<void>;
+  stop(): Promise<void>;
+}
+
+export interface IdleMonitor {
+  idleMs(): Promise<number>;
+}
