@@ -1,11 +1,13 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const IFACE = `
 <node>
   <interface name="org.guyr.FocusMonitor">
     <method name="GetFocusedWindow"><arg type="s" direction="out" name="json"/></method>
+    <method name="ShowFlash"><arg type="s" direction="in" name="text"/></method>
     <signal name="FocusChanged"><arg type="s" name="json"/></signal>
   </interface>
 </node>`;
@@ -36,6 +38,10 @@ export default class FocusMonitorExtension extends Extension {
 
     GetFocusedWindow() {
         return JSON.stringify(describe(global.display.focus_window));
+    }
+
+    ShowFlash(text) {
+        Main.osdWindowManager.showAll(Gio.ThemedIcon.new('dialog-warning-symbolic'), text);
     }
 
     _onFocus() {

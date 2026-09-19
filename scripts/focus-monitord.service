@@ -1,0 +1,12 @@
+[Unit]
+Description=Focus Monitor daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=@NODE@ --no-warnings @ROOT@/packages/daemon/dist/main.js
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target
