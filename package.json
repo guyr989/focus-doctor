@@ -1,0 +1,13 @@
+{
+  "name": "focus-monitor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Privacy-first desktop focus monitor for GNOME: notices when you drift from your task and nudges you back",
+  "license": "MIT",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  }
+}
