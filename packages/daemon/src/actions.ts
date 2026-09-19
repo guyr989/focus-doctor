@@ -10,6 +10,7 @@ export interface ActionContext {
 
 export interface ActionEffect {
   resetDrift?: boolean;
+  openSettings?: boolean;
   message: string;
 }
 
@@ -47,6 +48,7 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
     }
     case 'defer': {
       const t = store.addTask(describeSignal(ctx.signal), 'backlog', 'deferred');
+      store.enqueueSync(t.id);
       return {message: `saved for later as #${t.id}: ${t.title}`};
     }
     case 'override': {
@@ -61,7 +63,7 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
       return {message: 'notifications only for the rest of today'};
     }
     case 'settings':
-      return {message: 'settings: run `focus` in a terminal'};
+      return {openSettings: true, message: 'opening settings page'};
     default:
       return {message: action.action};
   }

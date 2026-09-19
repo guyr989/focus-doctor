@@ -7,7 +7,7 @@ export class DriftEngine {
   private onTaskSeconds = 0;
   private last: {obs: Observation; at: number} | null = null;
 
-  constructor(private readonly opts: {resetAfterOnTaskSeconds: number}) {}
+  constructor(public opts: {resetAfterOnTaskSeconds: number}) {}
 
   update(obs: Observation, nowMs: number): number {
     if (this.last) this.attribute(this.last.obs, Math.max(0, (nowMs - this.last.at) / 1000));

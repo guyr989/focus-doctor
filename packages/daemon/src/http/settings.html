@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Focus Monitor</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{color-scheme:light dark;--fg:#1a1a1a;--bg:#fafafa;--card:#fff;--line:#e2e2e2;--accent:#2f6fed;--muted:#6b6b6b}
+@media(prefers-color-scheme:dark){:root{--fg:#ececec;--bg:#161616;--card:#1f1f1f;--line:#333;--muted:#9a9a9a}}
+body{margin:0;font:15px/1.45 system-ui,sans-serif;color:var(--fg);background:var(--bg)}
+main{max-width:860px;margin:0 auto;padding:24px 16px}
+h1{font-size:22px;margin:0 0 16px}h2{font-size:16px;margin:28px 0 8px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 4px;text-align:left;border-top:1px solid var(--line);vertical-align:top}
+tr:first-child td{border-top:0}.muted{color:var(--muted);font-size:13px}
+button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+input,select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.star{color:var(--accent);font-weight:600}
+</style></head><body><main>
+<h1>Focus Monitor</h1>
+<p class="muted">Changes apply immediately — the daemon re-reads this on its next check.</p>
+<h2>Tasks <span class="muted">— the top active task is what you should be doing</span></h2>
+<section><table id="tasks"></table>
+<form id="addTask"><input name="title" placeholder="New task" required style="flex:1"><button class="primary">Add</button></form></section>
+<h2>Rules <span class="muted">— matched against “app | window title | site | page title”; deny beats allow; task rules beat global</span></h2>
+<section><table id="rules"></table>
+<form id="addRule"><select name="effect"><option>deny</option><option>allow</option></select>
+<input name="pattern" placeholder="pattern or /regex/" required style="flex:1"><select name="taskId"><option value="">global</option></select><button class="primary">Add</button></form></section>
+<h2>Settings</h2>
+<section><table id="settings"></table></section>
+</main><script>
+const $=s=>document.querySelector(s);
+const api=(p,o={})=>fetch('/api'+p,{method:o.method||'POST',headers:{'content-type':'application/json'},body:o.body&&JSON.stringify(o.body)}).then(load);
+async function load(){
+  const s=await (await fetch('/api/state')).json();
+  const byId=Object.fromEntries(s.tasks.map(t=>[t.id,t]));
+  $('#tasks').innerHTML=s.tasks.sort((a,b)=>(a.status!=='active')-(b.status!=='active')||a.priority-b.priority).map(t=>`<tr><td>${t.id===s.active?'<span class=star>★</span>':''}</td><td>${esc(t.title)}<div class=muted>#${t.id} · ${t.status}</div></td><td style="text-align:right;white-space:nowrap">${t.status==='active'?`<button onclick="api('/tasks/${t.id}/promote')">Top</button> <button onclick="api('/tasks/${t.id}/done')">Done</button>`:t.status==='backlog'?`<button onclick="api('/tasks/${t.id}/activate')">Activate</button>`:''}</td></tr>`).join('')||'<tr><td class=muted>No tasks yet.</td></tr>';
+  $('#rules').innerHTML=s.rules.map(r=>`<tr><td><b>${r.effect}</b></td><td><code>${esc(r.pattern)}</code></td><td class=muted>${r.taskId?('task #'+r.taskId+' '+esc(byId[r.taskId]?.title??'')):'global'}</td><td style="text-align:right"><button onclick="api('/rules/${r.id}',{method:'DELETE'})">Remove</button></td></tr>`).join('')||'<tr><td class=muted>No rules yet — add a deny rule for your usual distraction.</td></tr>';
+  $('[name=taskId]').innerHTML='<option value="">global</option>'+s.tasks.filter(t=>t.status==='active').map(t=>`<option value="${t.id}">task #${t.id} ${esc(t.title)}</option>`).join('');
+  $('#settings').innerHTML=Object.entries(s.settings).map(([k,v])=>`<tr><td><code>${k}</code><div class=muted>${s.descriptions[k]}</div></td><td><input value="${esc(v)}" onchange="api('/settings',{body:{[${JSON.stringify(k)}]:this.value}})"></td></tr>`).join('');
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('#addTask').onsubmit=e=>{e.preventDefault();api('/tasks',{body:{title:e.target.title.value}});e.target.reset()};
+$('#addRule').onsubmit=e=>{e.preventDefault();const f=e.target;api('/rules',{body:{effect:f.effect.value,pattern:f.pattern.value,taskId:f.taskId.value||null}});f.pattern.value=''};
+load();
+</script></body></html>

@@ -5,14 +5,31 @@ import {ClassifierChain} from './classify/chain.js';
 import {OllamaClassifier} from './classify/ollama.js';
 import {config} from './config.js';
 import {Daemon} from './daemon.js';
-import {BrowserIngest} from './ingest/browser.js';
+import {makeRoutes} from './http/routes.js';
+import {LocalServer} from './http/server.js';
+import {Settings} from './settings.js';
+import {GoogleTasks} from './sync/googleTasks.js';
 import {Store} from './store/db.js';
 
 const store = Store.open(config.dbPath);
 const shell = new GnomeShell();
-const llm = config.llmEnabled ? new OllamaClassifier({url: config.ollamaUrl, model: config.ollamaModel, timeoutMs: config.ollamaTimeoutMs}) : null;
-const classifier = new ClassifierChain(new VerdictCache(store, config.verdictTtlSeconds), llm, console.log);
-const daemon = new Daemon({source: shell, notifier: shell, idle: shell, actions: shell, classifier, tabs: new BrowserIngest(config.browserPort), store, config});
+const settings = new Settings(store);
+const llm = new OllamaClassifier({url: config.ollamaUrl, model: settings.get('ollama_model'), timeoutMs: config.ollamaTimeoutMs});
+const classifier = new ClassifierChain(new VerdictCache(store, config.verdictTtlSeconds), llm, console.log, () => {
+  llm.opts.model = settings.get('ollama_model');
+  return settings.get('llm_enabled') === '1';
+});
+let onTab: Parameters<typeof makeRoutes>[2] = () => {};
+const server = new LocalServer(config.port, makeRoutes(store, settings, t => onTab(t)));
+const tabs = {
+  start: async (cb: typeof onTab) => {
+    onTab = cb;
+    await server.start();
+  },
+  stop: () => server.stop(),
+};
+const google = new GoogleTasks(config.googleCredentialsPath, config.googleTokenPath);
+const daemon = new Daemon({source: shell, notifier: shell, idle: shell, actions: shell, classifier, tabs, google, settings, store, config});
 
 const shutdown = async () => {
   await daemon.stop();

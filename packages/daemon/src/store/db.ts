@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS samples (
   id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, app TEXT, title TEXT, host TEXT,
   verdict TEXT NOT NULL, task_id INTEGER, drift_seconds INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sync_outbox (
+  id INTEGER PRIMARY KEY, task_id INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT);
 CREATE TABLE IF NOT EXISTS verdicts (
   key TEXT PRIMARY KEY, task_id INTEGER NOT NULL, verdict TEXT NOT NULL,
   reason TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL);
@@ -85,6 +87,32 @@ export class Store {
     this.db
       .prepare('INSERT INTO rules (task_id, pattern, effect, expires_at) VALUES (?, ?, ?, ?)')
       .run(rule.taskId, rule.pattern, rule.effect, expiresAtSeconds);
+  }
+
+  deleteRule(id: number): void {
+    this.db.prepare('DELETE FROM rules WHERE id = ?').run(id);
+  }
+
+  taskById(id: number): Task | null {
+    return (this.db.prepare('SELECT id, title, priority, status FROM tasks WHERE id = ?').get(id) as unknown as Task | undefined) ?? null;
+  }
+
+  enqueueSync(taskId: number): void {
+    this.db.prepare('INSERT INTO sync_outbox (task_id) VALUES (?)').run(taskId);
+  }
+
+  pendingSync(maxAttempts = 5): {id: number; taskId: number; attempts: number}[] {
+    return this.db
+      .prepare('SELECT id, task_id AS taskId, attempts FROM sync_outbox WHERE attempts < ? ORDER BY id LIMIT 10')
+      .all(maxAttempts) as unknown as {id: number; taskId: number; attempts: number}[];
+  }
+
+  syncDone(id: number): void {
+    this.db.prepare('DELETE FROM sync_outbox WHERE id = ?').run(id);
+  }
+
+  syncFailed(id: number, error: string): void {
+    this.db.prepare('UPDATE sync_outbox SET attempts = attempts + 1, last_error = ? WHERE id = ?').run(error, id);
   }
 
   getSetting(key: string): string | null {

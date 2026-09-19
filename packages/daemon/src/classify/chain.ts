@@ -10,11 +10,12 @@ export class ClassifierChain {
     private readonly cache: VerdictCache,
     private readonly llm: OllamaClassifier | null,
     private readonly log: (msg: string) => void,
+    private readonly enabled: () => boolean = () => true,
   ) {}
 
   async classify(signal: Signal, task: Task, rules: Rule[], nowMs: number): Promise<Verdict> {
     const byRule = matchRules(signal, rules, task.id);
-    if (byRule !== 'unknown' || !this.llm) return byRule;
+    if (byRule !== 'unknown' || !this.llm || !this.enabled()) return byRule;
     const key = cacheKey(task.id, signal);
     const cached = this.cache.get(key, nowMs);
     if (cached) return cached;

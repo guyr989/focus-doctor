@@ -3,7 +3,7 @@ export class Escalator {
   private lastFiredAt = -Infinity;
   private snoozedUntil = 0;
 
-  constructor(private readonly opts: {thresholds: number[]; cooldownSeconds: number}) {}
+  constructor(public opts: {thresholds: number[]; cooldownSeconds: number}) {}
 
   evaluate(driftSeconds: number, nowMs: number): number | null {
     if (driftSeconds <= 0) {

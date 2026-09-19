@@ -25,7 +25,7 @@ const SCHEMA = {
 };
 
 export class OllamaClassifier {
-  constructor(private readonly opts: OllamaOptions) {}
+  constructor(public opts: OllamaOptions) {}
 
   async classify(signal: Signal, task: Task): Promise<LlmVerdict> {
     try {
