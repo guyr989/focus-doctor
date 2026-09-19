@@ -7,7 +7,7 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Chosen:** GJS extension exporting `org.guyr.FocusMonitor` on D-Bus.
 - **Rejected:** `xdotool`/`wmctrl` (X11 only, blind to Wayland windows); `org.gnome.Shell.Eval` (locked unless unsafe-mode, not supportable); AT-SPI accessibility tree (fragile, per-app opt-in).
 - **Why:** Verified on GNOME 50.1: nothing outside the compositor can see window titles.
-- **Switch cost:** 1 file — `packages/daemon/src/adapters/gnome.ts` implements `SignalSource`. A KDE/Hyprland/X11 adapter is a sibling file.
+- **Switch cost:** 1 file — `packages/daemon/src/adapters/gnome.ts` implements the `Shell` interface. A KDE/Hyprland/X11 adapter is a sibling file.
 
 ## D2 — No Electron / Tauri / Fable
 - **Chosen:** Extension draws all UI inside the compositor; a headless Node daemon holds logic.
@@ -46,13 +46,13 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Chosen:** MV3 service worker does `fetch POST http://127.0.0.1:47113/tab` on every tab change.
 - **Rejected:** persistent WebSocket (MV3 kills idle service workers, so the socket needs keep-alive tricks); native messaging host (snap-packaged Brave/Firefox make it painful); reading Chrome's history DB (locked while open, doesn't know the *active* tab).
 - **Why:** Stateless, ~20 lines, fails silently when the daemon is down, no keep-alive logic.
-- **Switch cost:** `packages/daemon/src/ingest/browser.ts` implements `TabSource`; `packages/browser-extension/background.js` is the other end.
+- **Switch cost:** `packages/daemon/src/http/routes.ts` handles `POST /tab`; `packages/browser-extension/background.js` is the other end.
 - **Privacy:** only hostname + page title are sent; the full URL never leaves the browser.
 
 ## D9 — Idle detection by polling `GetIdletime` each tick
 - **Chosen:** Ask Mutter's IdleMonitor for idle milliseconds on every 30 s heartbeat; over 90 s idle counts as away.
 - **Rejected:** `AddIdleWatch` signals (event-driven, but two extra signal handlers and reset bookkeeping for no gain at a 30 s cadence).
-- **Switch cost:** `IdleMonitor` port, one method.
+- **Switch cost:** `Shell.idleMs()`, one method.
 
 ## D10 — Browser fields only attach while a browser is focused
 - Tab info arrives independently of window focus. The daemon merges the last-known tab into the signal only when the focused window is a browser, so a stale tab can never be blamed while you're in another app.
