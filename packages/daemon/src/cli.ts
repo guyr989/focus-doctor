@@ -1,6 +1,9 @@
 #!/usr/bin/env -S node --no-warnings
 import {spawnSync} from 'node:child_process';
 import {SETTING} from './actions.js';
+import {VerdictCache} from './classify/cache.js';
+import {ClassifierChain} from './classify/chain.js';
+import {OllamaClassifier} from './classify/ollama.js';
 import {config} from './config.js';
 import {Store} from './store/db.js';
 import {activeTask, promote} from './tasks/queue.js';
@@ -19,6 +22,8 @@ const USAGE = `focus — command line for focus-monitor
   focus snooze <minutes>          pause interventions (0 to cancel)
   focus simulate 1|2|3            show that intervention level right now
   focus flash <text>              show a level-1 flash now (tests the extension)
+  focus llm test <window title>   ask the AI how it would judge a title for the active task
+  focus cache clear               forget all AI verdicts (after changing a task's wording)
   focus doctor                    check every moving part`;
 
 const DBUS = ['--user', 'call', 'org.guyr.FocusMonitor', '/org/guyr/FocusMonitor', 'org.guyr.FocusMonitor'];
@@ -28,7 +33,7 @@ const sh = (cmd: string, args: string[]) => spawnSync(cmd, args, {encoding: 'utf
 const ok = (label: string, pass: boolean, hint = '') =>
   console.log(`${pass ? '✔' : '✘'} ${label}${pass || !hint ? '' : `  → ${hint}`}`);
 
-function doctor(): void {
+async function doctor(): Promise<void> {
   const ext = sh('gnome-extensions', ['info', 'focus-monitor@guyr989']).stdout;
   ok('GNOME extension active', /State: ACTIVE/.test(ext), 'gnome-extensions enable focus-monitor@guyr989, then log out and in');
   ok('extension reachable on D-Bus', /org\.guyr\.FocusMonitor/.test(sh('busctl', ['--user', 'list']).stdout), 'extension not exporting its D-Bus name');
@@ -39,14 +44,27 @@ function doctor(): void {
     ok('an active task exists', activeTask(store.tasks()) !== null, 'focus task add "what you should be doing"');
     ok('at least one rule exists', store.rules().length > 0, 'focus rule add deny kdenlive');
     store.close();
+    const llm = await new OllamaClassifier({url: config.ollamaUrl, model: config.ollamaModel, timeoutMs: 2000}).available();
+    ok(`ollama reachable at ${config.ollamaUrl}`, llm.ok, 'curl -fsSL https://ollama.com/install.sh | sh   (needs sudo)');
+    ok(`model ${config.ollamaModel} pulled`, llm.models.some(m => m.startsWith(config.ollamaModel)), `ollama pull ${config.ollamaModel}`);
   } catch (e) {
     ok('database writable', false, String(e));
   }
 }
 
-function main(argv: string[]): void {
+async function main(argv: string[]): Promise<void> {
   const [group, cmd, ...rest] = argv;
   if (group === 'doctor') return doctor();
+  if (group === 'llm' && cmd === 'test') {
+    const store = Store.open(config.dbPath);
+    const task = activeTask(store.tasks());
+    if (!task) return console.log('no active task');
+    const llm = new OllamaClassifier({url: config.ollamaUrl, model: config.ollamaModel, timeoutMs: config.ollamaTimeoutMs});
+    const chain = new ClassifierChain(new VerdictCache(store, 0), llm, console.log);
+    const verdict = await chain.classify({app: null, title: rest.join(' ')}, task, [], Date.now());
+    console.log(`verdict for task "${task.title}": ${verdict}`);
+    return store.close();
+  }
   if (group === 'flash' || group === 'simulate') {
     const call =
       group === 'flash' ? ['ShowFlash', 's', [cmd, ...rest].join(' ')]
@@ -59,7 +77,9 @@ function main(argv: string[]): void {
   }
   const store = Store.open(config.dbPath);
   try {
-    if (group === 'snooze') {
+    if (group === 'cache' && cmd === 'clear') {
+      console.log(`forgot ${store.clearVerdicts()} verdicts`);
+    } else if (group === 'snooze') {
       const minutes = Number(cmd);
       store.setSetting(SETTING.snoozedUntil, minutes > 0 ? Date.now() + minutes * 60_000 : 0);
       console.log(minutes > 0 ? `snoozed for ${minutes} min` : 'snooze cancelled');
@@ -94,4 +114,4 @@ function main(argv: string[]): void {
   }
 }
 
-main(process.argv.slice(2));
+void main(process.argv.slice(2));

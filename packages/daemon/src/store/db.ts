@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS samples (
   id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, app TEXT, title TEXT, host TEXT,
   verdict TEXT NOT NULL, task_id INTEGER, drift_seconds INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS verdicts (
+  key TEXT PRIMARY KEY, task_id INTEGER NOT NULL, verdict TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL);
 `;
 
 export interface Sample {
@@ -24,6 +27,14 @@ export interface Sample {
   verdict: Verdict;
   taskId: number;
   driftSeconds: number;
+}
+
+export interface VerdictRow {
+  key: string;
+  taskId: number;
+  verdict: Verdict;
+  reason: string;
+  createdAt: number;
 }
 
 export class Store {
@@ -89,6 +100,23 @@ export class Store {
     this.db
       .prepare('INSERT INTO samples (ts, app, title, host, verdict, task_id, drift_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(s.ts, s.app, s.title, s.host, s.verdict, s.taskId, Math.round(s.driftSeconds));
+  }
+
+  getVerdict(key: string): VerdictRow | null {
+    const row = this.db
+      .prepare('SELECT key, task_id AS taskId, verdict, reason, created_at AS createdAt FROM verdicts WHERE key = ?')
+      .get(key) as unknown as VerdictRow | undefined;
+    return row ?? null;
+  }
+
+  putVerdict(v: VerdictRow): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO verdicts (key, task_id, verdict, reason, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(v.key, v.taskId, v.verdict, v.reason, v.createdAt);
+  }
+
+  clearVerdicts(): number {
+    return Number(this.db.prepare('DELETE FROM verdicts').run().changes);
   }
 
   close(): void {

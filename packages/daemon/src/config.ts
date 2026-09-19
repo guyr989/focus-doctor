@@ -9,6 +9,11 @@ export const config = {
   cooldownSeconds: 300,
   idleAfterSeconds: 90,
   browserPort: 47113,
+  llmEnabled: process.env.FOCUS_LLM !== '0',
+  ollamaUrl: process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434',
+  ollamaModel: process.env.FOCUS_MODEL ?? 'qwen2.5:3b',
+  ollamaTimeoutMs: 20_000,
+  verdictTtlSeconds: 7 * 24 * 3600,
 };
 
 export type Config = typeof config;

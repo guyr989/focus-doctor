@@ -70,3 +70,13 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 
 ## D13 — Promoting a distraction also writes an allow rule
 - Without it the new top task would immediately be judged off-task by the same deny rule that triggered the overlay. The rule is scoped to the new task, so the old task keeps its guard.
+
+## D14 — Local model: `qwen2.5:3b` via Ollama, unloaded between calls
+- **Chosen:** 3B instruct model, 4-bit, `keep_alive: 10m`, JSON-schema output, temperature 0.
+- **Rejected:** 7B+ (needs ~5 GB, this machine has ~4 GB free); vision models (no GPU); Gemini free tier / `claude -p` (data leaves the machine, or costs subscription limits).
+- **Why:** The verdict cache makes calls rare, so a 5–15 s cold answer on 4 CPU cores is acceptable. `keep_alive` lets the ~2 GB model leave RAM when idle.
+- **Switch cost:** `FOCUS_MODEL=qwen2.5:1.5b` env for a faster model; `packages/daemon/src/classify/ollama.ts` is the seam for any other provider (implement `classify(signal, task) → {verdict, reason}`).
+
+## D15 — The AI can only ever say "on task" by mistake, never "off task"
+- Any failure (down, slow, garbage) becomes `unknown`, which the drift engine treats as on task. Timeouts are hard (20 s) and the daemon's tick is serialised so a slow model can't pile up requests. Repeated identical questions are deduplicated in flight and cached for 7 days per (task, signal).
+- **Consequence for you:** if Ollama isn't installed, the tool silently degrades to rules-only. `focus doctor` tells you.

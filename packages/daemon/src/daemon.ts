@@ -1,5 +1,5 @@
 import {applyAction, SETTING} from './actions.js';
-import {matchRules} from './classify/rules.js';
+import type {ClassifierChain} from './classify/chain.js';
 import type {Config} from './config.js';
 import {DriftEngine} from './drift/engine.js';
 import {Escalator} from './drift/escalator.js';
@@ -16,6 +16,7 @@ export interface DaemonDeps {
   notifier: Notifier;
   store: Store;
   config: Config;
+  classifier: ClassifierChain;
   actions?: ActionSource;
   tabs?: TabSource;
   idle?: IdleMonitor;
@@ -32,6 +33,7 @@ export class Daemon {
   private tab: Tab | null = null;
   private taskId: number | null = null;
   private timer: NodeJS.Timeout | null = null;
+  private ticking = false;
 
   constructor(private readonly deps: DaemonDeps) {
     this.engine = new DriftEngine({resetAfterOnTaskSeconds: deps.config.resetAfterOnTaskSeconds});
@@ -77,6 +79,16 @@ export class Daemon {
   }
 
   private async tick(): Promise<void> {
+    if (this.ticking) return;
+    this.ticking = true;
+    try {
+      await this.evaluate();
+    } finally {
+      this.ticking = false;
+    }
+  }
+
+  private async evaluate(): Promise<void> {
     const now = this.now();
     const task = activeTask(this.deps.store.tasks());
     const signal = this.currentSignal();
@@ -90,7 +102,7 @@ export class Daemon {
       this.engine.reset();
       this.escalator.reset();
     }
-    const verdict = matchRules(signal, this.deps.store.rules(Math.floor(now / 1000)), task.id);
+    const verdict = await this.deps.classifier.classify(signal, task, this.deps.store.rules(Math.floor(now / 1000)), now);
     const drift = this.engine.update(verdict, now);
     this.deps.store.recordSample({
       ts: Math.floor(now / 1000),
