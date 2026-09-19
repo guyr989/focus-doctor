@@ -80,3 +80,13 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 ## D15 — The AI can only ever say "on task" by mistake, never "off task"
 - Any failure (down, slow, garbage) becomes `unknown`, which the drift engine treats as on task. Timeouts are hard (20 s) and the daemon's tick is serialised so a slow model can't pile up requests. Repeated identical questions are deduplicated in flight and cached for 7 days per (task, signal).
 - **Consequence for you:** if Ollama isn't installed, the tool silently degrades to rules-only. `focus doctor` tells you.
+
+## D16 — Settings page is a single HTML file served by the daemon
+- **Chosen:** `packages/daemon/src/http/settings.html`, vanilla JS, on the same localhost port as the tab endpoint. The daemon re-reads settings every tick, so CLI, page and overlay all edit one table and take effect within 30 s.
+- **Rejected:** Electron/GTK settings window (a whole process for a form); a GNOME extension prefs dialog (only reachable via the Extensions app, can't show tasks).
+- **Switch cost:** the page is one file; the JSON API under `/api/` in `http/routes.ts` stays for any other frontend.
+
+## D17 — Google Tasks needs your own OAuth client
+- Google doesn't allow shipping a shared client secret in an open-source desktop app, so you create a Desktop OAuth client once and drop it in `~/.config/focus-monitor/google.json`. Sync is an outbox with 5 retries; the local backlog is always authoritative.
+- **Rejected:** Google Keep (no consumer API); `gkeepapi` (reverse-engineered, needs a master token).
+- **Switch cost:** `sync/googleTasks.ts` implements `push(title, notes)`; a Markdown-file or Todoist sink is a sibling file.
