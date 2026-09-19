@@ -56,3 +56,17 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 
 ## D10 — Browser fields only attach while a browser is focused
 - Tab info arrives independently of window focus. The daemon merges the last-known tab into the signal only when the focused window is a browser, so a stale tab can never be blamed while you're in another app.
+
+## D11 — Level-3 overlay is a staged GNOME ModalDialog
+- **Chosen:** One `ModalDialog` whose button row is swapped between stages (main → snooze presets → custom minutes; main → more). Seven actions never share one row.
+- **Rejected:** A custom full-screen St widget (more code, no free keyboard handling, input grab to write by hand); a GTK window (cannot be always-on-top on Wayland).
+- **Why:** `ModalDialog` gives an input grab, Escape/Enter handling and the system dialog look for free.
+- **Switch cost:** `packages/gnome-extension/focus-monitor@guyr989/ui/overlay.js`; the daemon only sees `OverlayAction` JSON.
+
+## D12 — "Override settings at runtime" = two concrete escape hatches
+- **Interpretation:** From the overlay you can (a) allow the current app for the rest of today (a task-scoped `allow` rule with an expiry), or (b) drop to notifications-only for the rest of today (caps the level at 2). Both expire at local midnight so a bad day doesn't silently disable the tool forever.
+- **Rejected:** editing thresholds from the overlay (too fiddly under time pressure; that's what the settings menu in P5 is for).
+- **Switch cost:** `packages/daemon/src/actions.ts`, one `case`.
+
+## D13 — Promoting a distraction also writes an allow rule
+- Without it the new top task would immediately be judged off-task by the same deny rule that triggered the overlay. The rule is scoped to the new task, so the old task keeps its guard.

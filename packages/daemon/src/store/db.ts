@@ -29,6 +29,9 @@ export interface Sample {
 export class Store {
   private constructor(private readonly db: DatabaseSync) {
     db.exec(SCHEMA);
+    try {
+      db.exec('ALTER TABLE rules ADD COLUMN expires_at INTEGER');
+    } catch {}
   }
 
   static open(path: string): Store {
@@ -61,12 +64,25 @@ export class Store {
     this.db.prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, id);
   }
 
-  rules(): Rule[] {
-    return (this.db.prepare('SELECT id, task_id AS taskId, pattern, effect FROM rules').all() as unknown) as Rule[];
+  rules(nowSeconds = Math.floor(Date.now() / 1000)): Rule[] {
+    return (this.db
+      .prepare('SELECT id, task_id AS taskId, pattern, effect FROM rules WHERE expires_at IS NULL OR expires_at > ?')
+      .all(nowSeconds) as unknown) as Rule[];
   }
 
-  addRule(rule: Rule): void {
-    this.db.prepare('INSERT INTO rules (task_id, pattern, effect) VALUES (?, ?, ?)').run(rule.taskId, rule.pattern, rule.effect);
+  addRule(rule: Rule, expiresAtSeconds: number | null = null): void {
+    this.db
+      .prepare('INSERT INTO rules (task_id, pattern, effect, expires_at) VALUES (?, ?, ?, ?)')
+      .run(rule.taskId, rule.pattern, rule.effect, expiresAtSeconds);
+  }
+
+  getSetting(key: string): string | null {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as {value: string} | undefined;
+    return row?.value ?? null;
+  }
+
+  setSetting(key: string, value: string | number): void {
+    this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(value));
   }
 
   recordSample(s: Sample): void {

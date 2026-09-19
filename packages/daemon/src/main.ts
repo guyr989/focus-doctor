@@ -7,7 +7,7 @@ import {Store} from './store/db.js';
 
 const store = Store.open(config.dbPath);
 const shell = new GnomeShell();
-const daemon = new Daemon({source: shell, notifier: shell, idle: shell, tabs: new BrowserIngest(config.browserPort), store, config});
+const daemon = new Daemon({source: shell, notifier: shell, idle: shell, actions: shell, tabs: new BrowserIngest(config.browserPort), store, config});
 
 const shutdown = async () => {
   await daemon.stop();

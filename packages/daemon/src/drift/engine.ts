@@ -16,6 +16,12 @@ export class DriftEngine {
     return this.driftSeconds;
   }
 
+  reset(): void {
+    this.driftSeconds = 0;
+    this.onTaskSeconds = 0;
+    this.last = null;
+  }
+
   private attribute(obs: Observation, elapsed: number): void {
     if (obs === 'idle') return;
     if (obs === 'off_task') {

@@ -1,5 +1,5 @@
 import dbus, {type ClientInterface, type MessageBus} from 'dbus-next';
-import type {IdleMonitor, Notifier, Signal, SignalSource} from '../types.js';
+import type {ActionSource, IdleMonitor, Notifier, OverlayAction, OverlayPayload, Signal, SignalSource} from '../types.js';
 
 const NAME = 'org.guyr.FocusMonitor';
 const PATH = '/org/guyr/FocusMonitor';
@@ -11,11 +11,12 @@ function parse(json: string): Signal {
   return {app: w.wm_class, title: w.title};
 }
 
-export class GnomeShell implements SignalSource, Notifier, IdleMonitor {
+export class GnomeShell implements SignalSource, Notifier, IdleMonitor, ActionSource {
   private bus: MessageBus | null = null;
   private iface: ClientInterface | null = null;
   private idle: ClientInterface | null = null;
   private handler: ((json: string) => void) | null = null;
+  private actionHandler: ((json: string) => void) | null = null;
 
   async start(onSignal: (s: Signal) => void): Promise<void> {
     this.bus = dbus.sessionBus();
@@ -29,8 +30,9 @@ export class GnomeShell implements SignalSource, Notifier, IdleMonitor {
 
   async stop(): Promise<void> {
     if (this.iface && this.handler) this.iface.off('FocusChanged', this.handler);
+    if (this.iface && this.actionHandler) this.iface.off('OverlayAction', this.actionHandler);
     this.bus?.disconnect();
-    this.iface = this.idle = this.handler = this.bus = null;
+    this.iface = this.idle = this.handler = this.actionHandler = this.bus = null;
   }
 
   async idleMs(): Promise<number> {
@@ -39,5 +41,18 @@ export class GnomeShell implements SignalSource, Notifier, IdleMonitor {
 
   async flash(text: string): Promise<void> {
     await this.iface?.ShowFlash(text);
+  }
+
+  async ack(title: string, body: string): Promise<void> {
+    await this.iface?.ShowAck(JSON.stringify({title, body}));
+  }
+
+  async overlay(payload: OverlayPayload): Promise<void> {
+    await this.iface?.ShowOverlay(JSON.stringify(payload));
+  }
+
+  onAction(cb: (a: OverlayAction) => void): void {
+    this.actionHandler = json => cb(JSON.parse(json) as OverlayAction);
+    this.iface?.on('OverlayAction', this.actionHandler);
   }
 }

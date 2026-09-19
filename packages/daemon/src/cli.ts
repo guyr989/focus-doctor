@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --no-warnings
 import {spawnSync} from 'node:child_process';
+import {SETTING} from './actions.js';
 import {config} from './config.js';
 import {Store} from './store/db.js';
 import {activeTask, promote} from './tasks/queue.js';
@@ -15,8 +16,13 @@ const USAGE = `focus — command line for focus-monitor
                                   pattern is matched case-insensitively against
                                   "app | window title"; wrap in /.../ for a regex
   focus rule list
+  focus snooze <minutes>          pause interventions (0 to cancel)
+  focus simulate 1|2|3            show that intervention level right now
   focus flash <text>              show a level-1 flash now (tests the extension)
   focus doctor                    check every moving part`;
+
+const DBUS = ['--user', 'call', 'org.guyr.FocusMonitor', '/org/guyr/FocusMonitor', 'org.guyr.FocusMonitor'];
+const SAMPLE = {task: 'Client invoice PDF', app: 'kdenlive', title: 'mockup_bg.mp4 - Kdenlive', driftSeconds: 600, snoozeMinutes: 5, snoozePresets: [5, 10, 15, 30, 60]};
 
 const sh = (cmd: string, args: string[]) => spawnSync(cmd, args, {encoding: 'utf8'});
 const ok = (label: string, pass: boolean, hint = '') =>
@@ -41,14 +47,23 @@ function doctor(): void {
 function main(argv: string[]): void {
   const [group, cmd, ...rest] = argv;
   if (group === 'doctor') return doctor();
-  if (group === 'flash') {
-    const r = sh('busctl', ['--user', 'call', 'org.guyr.FocusMonitor', '/org/guyr/FocusMonitor', 'org.guyr.FocusMonitor', 'ShowFlash', 's', [cmd, ...rest].join(' ')]);
-    if (r.status !== 0) console.error(r.stderr.trim());
+  if (group === 'flash' || group === 'simulate') {
+    const call =
+      group === 'flash' ? ['ShowFlash', 's', [cmd, ...rest].join(' ')]
+      : cmd === '1' ? ['ShowFlash', 's', `Off task 2 min — back to: ${SAMPLE.task}`]
+      : cmd === '2' ? ['ShowAck', 's', JSON.stringify({title: 'Off task 5 min', body: `You should be on: ${SAMPLE.task}`})]
+      : ['ShowOverlay', 's', JSON.stringify(SAMPLE)];
+    const r = sh('busctl', [...DBUS, ...call]);
+    if (r.status !== 0) console.error(r.stderr.trim() || 'extension not reachable');
     return;
   }
   const store = Store.open(config.dbPath);
   try {
-    if (group === 'task' && cmd === 'add') {
+    if (group === 'snooze') {
+      const minutes = Number(cmd);
+      store.setSetting(SETTING.snoozedUntil, minutes > 0 ? Date.now() + minutes * 60_000 : 0);
+      console.log(minutes > 0 ? `snoozed for ${minutes} min` : 'snooze cancelled');
+    } else if (group === 'task' && cmd === 'add') {
       const t = store.addTask(rest.join(' '));
       console.log(`added #${t.id} "${t.title}" at priority ${t.priority}`);
     } else if (group === 'task' && cmd === 'list') {
