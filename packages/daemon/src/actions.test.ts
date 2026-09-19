@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {applyAction, SETTING} from './actions.js';
+import {applyAction} from './actions.js';
 import {Store} from './store/db.js';
 import {activeTask} from './tasks/queue.js';
 import type {Signal} from './types.js';
@@ -32,8 +32,8 @@ describe('overlay actions', () => {
   it('snooze persists the deadline and remembers the choice', () => {
     const {store, ctx} = setup();
     applyAction(store, {action: 'snooze', minutes: 15}, ctx);
-    expect(Number(store.getSetting(SETTING.snoozedUntil))).toBe(ctx.nowMs + 15 * 60_000);
-    expect(store.getSetting(SETTING.lastSnoozeMinutes)).toBe('15');
+    expect(Number(store.getSetting('snoozed_until'))).toBe(ctx.nowMs + 15 * 60_000);
+    expect(store.getSetting('last_snooze_minutes')).toBe('15');
   });
 
   it('allow-app-today rule expires at midnight', () => {

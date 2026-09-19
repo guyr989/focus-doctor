@@ -1,6 +1,5 @@
 #!/usr/bin/env -S node --no-warnings
 import {spawnSync} from 'node:child_process';
-import {SETTING} from './actions.js';
 import {DESCRIPTIONS, Settings} from './settings.js';
 import {GoogleTasks, openInBrowser} from './sync/googleTasks.js';
 import {VerdictCache} from './classify/cache.js';
@@ -98,7 +97,7 @@ async function main(argv: string[]): Promise<void> {
       console.log(`forgot ${store.clearVerdicts()} verdicts`);
     } else if (group === 'snooze') {
       const minutes = Number(cmd);
-      store.setSetting(SETTING.snoozedUntil, minutes > 0 ? Date.now() + minutes * 60_000 : 0);
+      store.setSetting('snoozed_until', minutes > 0 ? Date.now() + minutes * 60_000 : 0);
       console.log(minutes > 0 ? `snoozed for ${minutes} min` : 'snooze cancelled');
     } else if (group === 'task' && cmd === 'add') {
       const t = store.addTask(rest.join(' '));

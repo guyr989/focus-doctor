@@ -19,17 +19,8 @@ const classifier = new ClassifierChain(new VerdictCache(store, config.verdictTtl
   llm.opts.model = settings.get('ollama_model');
   return settings.get('llm_enabled') === '1';
 });
-let onTab: Parameters<typeof makeRoutes>[2] = () => {};
-const server = new LocalServer(config.port, makeRoutes(store, settings, t => onTab(t)));
-const tabs = {
-  start: async (cb: typeof onTab) => {
-    onTab = cb;
-    await server.start();
-  },
-  stop: () => server.stop(),
-};
 const google = new GoogleTasks(config.googleCredentialsPath, config.googleTokenPath);
-const daemon = new Daemon({source: shell, notifier: shell, idle: shell, actions: shell, classifier, tabs, google, settings, store, config});
+const daemon = new Daemon({shell, classifier, google, settings, store, server: new LocalServer(config.port, makeRoutes(store, settings, t => daemon.onTab(t)))});
 
 const shutdown = async () => {
   await daemon.stop();

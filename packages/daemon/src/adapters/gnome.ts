@@ -1,5 +1,5 @@
 import dbus, {type ClientInterface, type MessageBus} from 'dbus-next';
-import type {ActionSource, IdleMonitor, Notifier, OverlayAction, OverlayPayload, Signal, SignalSource} from '../types.js';
+import type {OverlayAction, OverlayPayload, Shell, Signal} from '../types.js';
 
 const NAME = 'org.guyr.FocusMonitor';
 const PATH = '/org/guyr/FocusMonitor';
@@ -11,7 +11,7 @@ function parse(json: string): Signal {
   return {app: w.wm_class, title: w.title};
 }
 
-export class GnomeShell implements SignalSource, Notifier, IdleMonitor, ActionSource {
+export class GnomeShell implements Shell {
   private bus: MessageBus | null = null;
   private iface: ClientInterface | null = null;
   private idle: ClientInterface | null = null;

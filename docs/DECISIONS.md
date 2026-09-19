@@ -90,3 +90,8 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - Google doesn't allow shipping a shared client secret in an open-source desktop app, so you create a Desktop OAuth client once and drop it in `~/.config/focus-monitor/google.json`. Sync is an outbox with 5 retries; the local backlog is always authoritative.
 - **Rejected:** Google Keep (no consumer API); `gkeepapi` (reverse-engineered, needs a master token).
 - **Switch cost:** `sync/googleTasks.ts` implements `push(title, notes)`; a Markdown-file or Todoist sink is a sibling file.
+
+## D18 — Ponytail audit applied (‑54 lines)
+- The four desktop ports (`SignalSource`, `Notifier`, `ActionSource`, `IdleMonitor`) became one `Shell` interface in `types.ts`. Still one file to implement for KDE/Hyprland — just one interface instead of four.
+- Dropped: `TabSource` wrapper (daemon takes the `LocalServer` directly), live heartbeat rescheduling (`heartbeat_seconds` now needs a daemon restart), `SETTING` constant (string keys typed by `SettingKey`), `max_level`+`max_level_until` (now a single `notify_only_until`), `Settings.numbers()`, the `openSettings` effect flag, and the `pendingRedirect` side-channel in Google login.
+- **Switch cost:** each is a mechanical re-split; nothing architectural moved.

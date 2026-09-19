@@ -37,30 +37,28 @@ export class GoogleTasks {
 
   async login(): Promise<void> {
     const {client_id, client_secret} = this.credentials();
-    const code = await new Promise<string>((resolve, reject) => {
+    const {code, redirect} = await new Promise<{code: string; redirect: string}>((resolve, reject) => {
+      let redirect = '';
       const server = createServer((req, res) => {
         const c = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams.get('code');
         res.end(c ? 'Focus Monitor is connected to Google Tasks. You can close this tab.' : 'missing code');
         server.close();
-        c ? resolve(c) : reject(new Error('no code in callback'));
+        c ? resolve({code: c, redirect}) : reject(new Error('no code in callback'));
       }).listen(0, '127.0.0.1', () => {
-        const {port} = server.address() as {port: number};
+        redirect = `http://127.0.0.1:${(server.address() as {port: number}).port}`;
         const url = new URL(AUTH);
         url.search = new URLSearchParams({
-          client_id, redirect_uri: `http://127.0.0.1:${port}`, response_type: 'code',
+          client_id, redirect_uri: redirect, response_type: 'code',
           scope: SCOPE, access_type: 'offline', prompt: 'consent',
         }).toString();
         console.log(`Opening browser for Google sign-in… (or visit)\n${url}`);
         openInBrowser(url.toString());
-        this.pendingRedirect = `http://127.0.0.1:${port}`;
       });
     });
-    const token = await this.exchange({code, redirect_uri: this.pendingRedirect, grant_type: 'authorization_code', client_id, client_secret});
+    const token = await this.exchange({code, redirect_uri: redirect, grant_type: 'authorization_code', client_id, client_secret});
     this.save(token);
     console.log(`connected; token saved to ${this.tokenPath}`);
   }
-
-  private pendingRedirect = '';
 
   private async exchange(params: Record<string, string>): Promise<Token> {
     const res = await fetch(TOKEN, {method: 'POST', headers: {'content-type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams(params)});

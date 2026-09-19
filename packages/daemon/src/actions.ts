@@ -1,4 +1,6 @@
+import {config} from './config.js';
 import type {Store} from './store/db.js';
+import {openInBrowser} from './sync/googleTasks.js';
 import {promote} from './tasks/queue.js';
 import type {OverlayAction, Signal, Task} from './types.js';
 
@@ -10,16 +12,8 @@ export interface ActionContext {
 
 export interface ActionEffect {
   resetDrift?: boolean;
-  openSettings?: boolean;
   message: string;
 }
-
-export const SETTING = {
-  snoozedUntil: 'snoozed_until',
-  lastSnoozeMinutes: 'last_snooze_minutes',
-  maxLevel: 'max_level',
-  maxLevelUntil: 'max_level_until',
-} as const;
 
 export function describeSignal(s: Signal): string {
   if (s.host) return `${s.host}: ${s.pageTitle ?? ''}`.trim();
@@ -36,8 +30,8 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
   switch (action.action) {
     case 'snooze': {
       const until = ctx.nowMs + action.minutes * 60_000;
-      store.setSetting(SETTING.snoozedUntil, until);
-      store.setSetting(SETTING.lastSnoozeMinutes, action.minutes);
+      store.setSetting('snoozed_until', until);
+      store.setSetting('last_snooze_minutes', action.minutes);
       return {message: `snoozed ${action.minutes} min`};
     }
     case 'promote': {
@@ -58,12 +52,12 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
         store.addRule({taskId: ctx.task.id, pattern, effect: 'allow'}, Math.floor(until / 1000));
         return {resetDrift: true, message: `allowing "${pattern}" for today`};
       }
-      store.setSetting(SETTING.maxLevel, 2);
-      store.setSetting(SETTING.maxLevelUntil, until);
+      store.setSetting('notify_only_until', until);
       return {message: 'notifications only for the rest of today'};
     }
     case 'settings':
-      return {openSettings: true, message: 'opening settings page'};
+      openInBrowser(`http://127.0.0.1:${config.port}/`);
+      return {message: 'opening settings page'};
     default:
       return {message: action.action};
   }

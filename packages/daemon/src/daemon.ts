@@ -2,29 +2,24 @@ import {applyAction} from './actions.js';
 import type {ClassifierChain} from './classify/chain.js';
 import type {Settings} from './settings.js';
 import type {GoogleTasks} from './sync/googleTasks.js';
-import {openInBrowser} from './sync/googleTasks.js';
-import type {Config} from './config.js';
 import {DriftEngine} from './drift/engine.js';
 import {Escalator} from './drift/escalator.js';
 import type {Store} from './store/db.js';
 import {activeTask} from './tasks/queue.js';
-import type {ActionSource, IdleMonitor, Notifier, OverlayAction, Signal, SignalSource, Tab, TabSource, Task} from './types.js';
+import type {LocalServer} from './http/server.js';
+import type {OverlayAction, Shell, Signal, Tab, Task} from './types.js';
 
 const BROWSERS = ['chrome', 'chromium', 'brave', 'firefox', 'edge'];
 const isBrowser = (app: string | null) => !!app && BROWSERS.some(b => app.toLowerCase().includes(b));
 const SNOOZE_PRESETS = [5, 10, 15, 30, 60];
 
 export interface DaemonDeps {
-  source: SignalSource;
-  notifier: Notifier;
+  shell: Shell;
   store: Store;
-  config: Config;
   settings: Settings;
   classifier: ClassifierChain;
+  server?: LocalServer;
   google?: GoogleTasks;
-  actions?: ActionSource;
-  tabs?: TabSource;
-  idle?: IdleMonitor;
   now?: () => number;
   log?: (msg: string) => void;
 }
@@ -47,42 +42,33 @@ export class Daemon {
     this.log = deps.log ?? console.log;
   }
 
+  onTab(t: Tab): void {
+    this.tab = t;
+    void this.tick();
+  }
+
   async start(): Promise<void> {
-    await this.deps.tabs?.start(t => {
-      this.tab = t;
-      void this.tick();
-    });
-    await this.deps.source.start(s => {
+    await this.deps.server?.start();
+    await this.deps.shell.start(s => {
       this.window = s;
       void this.tick();
     });
-    this.deps.actions?.onAction(a => this.onAction(a));
-    this.schedule();
+    this.deps.shell.onAction(a => this.onAction(a));
+    this.timer = setInterval(() => void this.tick(), this.deps.settings.number('heartbeat_seconds') * 1000);
     this.log('focus-monitord started');
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    await this.deps.tabs?.stop();
-    await this.deps.source.stop();
-  }
-
-  private heartbeat = 0;
-
-  private schedule(): void {
-    const seconds = this.deps.settings.number('heartbeat_seconds');
-    if (seconds === this.heartbeat) return;
-    if (this.timer) clearInterval(this.timer);
-    this.heartbeat = seconds;
-    this.timer = setInterval(() => void this.tick(), seconds * 1000);
+    await this.deps.server?.stop();
+    await this.deps.shell.stop();
   }
 
   private applySettings(): void {
     const s = this.deps.settings;
     this.engine.opts.resetAfterOnTaskSeconds = s.number('reset_after_on_task_seconds');
-    this.escalator.opts = {thresholds: s.numbers('thresholds'), cooldownSeconds: s.number('cooldown_seconds')};
-    this.schedule();
+    this.escalator.opts = {thresholds: s.get('thresholds').split(',').map(Number), cooldownSeconds: s.number('cooldown_seconds')};
   }
 
   private currentSignal(): Signal | null {
@@ -92,9 +78,7 @@ export class Daemon {
   }
 
   private levelCap(now: number): number {
-    const s = this.deps.settings;
-    const until = s.number('max_level_until');
-    return until === 0 || until > now ? s.number('max_level') : 3;
+    return this.deps.settings.number('notify_only_until') > now ? 2 : 3;
   }
 
   private async tick(): Promise<void> {
@@ -113,7 +97,7 @@ export class Daemon {
     await this.flushSync();
     const task = activeTask(this.deps.store.tasks());
     const signal = this.currentSignal();
-    const idleMs = (await this.deps.idle?.idleMs()) ?? 0;
+    const idleMs = await this.deps.shell.idleMs();
     if (!task || !signal || idleMs > this.deps.settings.number('idle_after_seconds') * 1000) {
       this.engine.update('idle', now);
       return;
@@ -142,7 +126,7 @@ export class Daemon {
   private async intervene(level: number, task: Task, signal: Signal, drift: number): Promise<void> {
     const span = drift < 60 ? `${Math.round(drift)}s` : `${Math.round(drift / 60)} min`;
     this.log(`level ${level}: off task ${span} (task: ${task.title})`);
-    const n = this.deps.notifier;
+    const n = this.deps.shell;
     if (level === 1) return n.flash(`Off task ${span} — back to: ${task.title}`);
     if (level === 2) return n.ack(`Off task ${span}`, `You should be on: ${task.title}`);
     return n.overlay({
@@ -164,7 +148,6 @@ export class Daemon {
       this.engine.reset();
       this.escalator.reset();
     }
-    if (effect.openSettings) openInBrowser(`http://127.0.0.1:${this.deps.config.port}/`);
     this.log(`action ${action.action}: ${effect.message}`);
   }
 
