@@ -30,3 +30,14 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Chosen:** Node's built-in SQLite (experimental flag, stable API surface).
 - **Rejected:** better-sqlite3 (native build step on Node 25); Prisma/Drizzle (dependency weight for 6 tables).
 - **Switch cost:** `Store` port; all SQL lives in `packages/daemon/src/store/`.
+
+## D6 — CLI lives inside the daemon package
+- **Chosen:** `focus` is `packages/daemon/src/cli.ts`, sharing the store and queue code directly.
+- **Rejected:** a separate `packages/cli` talking to the daemon over HTTP.
+- **Why:** SQLite is the shared state; both processes read it, so no IPC is needed. Halves the package count for the POC.
+- **Switch cost:** move the file; if live daemon↔CLI messaging is ever needed, add an HTTP/IPC port then.
+
+## D7 — Timing knobs via environment variables
+- **Chosen:** `FOCUS_THRESHOLDS=4,8,12 FOCUS_HEARTBEAT=2 FOCUS_DB=...` override defaults.
+- **Why:** Lets the end-to-end smoke test run in 20 s instead of 10 min, and isolates a scratch database.
+- **Switch cost:** P5 replaces this with the settings store; env stays as an override.

@@ -16,7 +16,16 @@ const shutdown = async () => {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-daemon.start().catch(err => {
-  console.error(`cannot start: ${err.message ?? err}. Is the GNOME extension enabled?`);
-  process.exit(1);
-});
+const RETRY_SECONDS = 30;
+async function startWithRetry(): Promise<void> {
+  for (;;) {
+    try {
+      await daemon.start();
+      return;
+    } catch (err) {
+      console.error(`extension not reachable (${(err as Error).message}); retrying in ${RETRY_SECONDS}s`);
+      await new Promise(r => setTimeout(r, RETRY_SECONDS * 1000));
+    }
+  }
+}
+void startWithRetry();

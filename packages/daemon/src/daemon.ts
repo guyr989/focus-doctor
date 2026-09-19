@@ -70,8 +70,8 @@ export class Daemon {
   }
 
   private async intervene(level: number, task: Task, drift: number): Promise<void> {
-    const minutes = Math.round(drift / 60);
-    this.log(`level ${level}: off task ${minutes} min (task: ${task.title})`);
-    await this.deps.notifier.flash(`Off task ${minutes} min — back to: ${task.title}`);
+    const span = drift < 60 ? `${Math.round(drift)}s` : `${Math.round(drift / 60)} min`;
+    this.log(`level ${level}: off task ${span} (task: ${task.title})`);
+    await this.deps.notifier.flash(`Off task ${span} — back to: ${task.title}`);
   }
 }
