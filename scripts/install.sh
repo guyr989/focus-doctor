@@ -13,7 +13,7 @@ chmod +x "$ROOT"/packages/daemon/dist/{cli,main}.js
 
 sed -e "s|@NODE@|$NODE|" -e "s|@ROOT@|$ROOT|" "$ROOT/scripts/focus-monitord.service" > ~/.config/systemd/user/focus-monitord.service
 systemctl --user daemon-reload
-systemctl --user enable --now focus-monitord
+systemctl --user enable focus-monitord >/dev/null && systemctl --user restart focus-monitord
 
 gnome-extensions enable focus-monitor@guyr989 || true
 cat <<MSG
