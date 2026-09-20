@@ -120,7 +120,12 @@ export class Daemon {
     });
     this.escalator.snooze(this.deps.settings.number('snoozed_until'));
     const level = this.escalator.evaluate(drift, now);
-    if (level) await this.intervene(Math.min(level, this.levelCap(now)), task, signal, drift);
+    if (!level) return;
+    try {
+      await this.intervene(Math.min(level, this.levelCap(now)), task, signal, drift);
+    } catch (err) {
+      this.log(`intervention failed: ${(err as Error).message}`);
+    }
   }
 
   private async intervene(level: number, task: Task, signal: Signal, drift: number): Promise<void> {
