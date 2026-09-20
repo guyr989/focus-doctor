@@ -1,10 +1,10 @@
 {
-  "name": "focus-monitord",
+  "name": "focus-doctord",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "focus-monitord": "dist/main.js",
+    "focus-doctord": "dist/main.js",
     "focus": "dist/cli.js"
   },
   "scripts": {

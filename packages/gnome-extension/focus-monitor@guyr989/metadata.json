@@ -1,8 +1,0 @@
-{
-  "uuid": "focus-monitor@guyr989",
-  "name": "Focus Monitor",
-  "description": "Reports the focused window to focus-monitord and shows its interventions",
-  "shell-version": ["50"],
-  "url": "https://github.com/guyr989/focus-monitor",
-  "version": 1
-}

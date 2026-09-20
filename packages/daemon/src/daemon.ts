@@ -55,7 +55,7 @@ export class Daemon {
     });
     this.deps.shell.onAction(a => this.onAction(a));
     this.timer = setInterval(() => void this.tick(), this.deps.settings.number('heartbeat_seconds') * 1000);
-    this.log('focus-monitord started');
+    this.log('focus-doctord started');
   }
 
   async stop(): Promise<void> {
@@ -161,7 +161,7 @@ export class Daemon {
         continue;
       }
       try {
-        await g.push(task.title, 'Saved for later by Focus Monitor');
+        await g.push(task.title, 'Saved for later by Focus Doctor');
         this.deps.store.syncDone(item.id);
         this.log(`synced "${task.title}" to Google Tasks`);
       } catch (err) {

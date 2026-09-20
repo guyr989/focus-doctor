@@ -1,13 +1,13 @@
-# Focus Monitor
+# Focus Doctor
 
-A privacy-first focus monitor for GNOME on Linux. It knows which task you're supposed to be on, notices when you drift into something else, and nudges you back — escalating if you keep drifting.
+A privacy-first focus doctor for GNOME on Linux. It knows which task you're supposed to be on, notices when you drift into something else, and nudges you back — escalating if you keep drifting.
 
 Nothing leaves your machine. No screenshots. The only signals are the title of the window you're using and, optionally, the site name of your active browser tab. The optional AI runs locally through Ollama.
 
 ## How it works
 
 ```
-GNOME Shell extension ──D-Bus──▶ focus-monitord (background daemon)
+GNOME Shell extension ──D-Bus──▶ focus-doctord (background daemon)
   reports focused window            rules → cache → local AI → drift timer → escalation
   draws the interventions      ◀──  "show a flash / notification / overlay"
                                         ▲
@@ -34,7 +34,7 @@ Anything with no matching rule and no AI verdict is treated as on-task. Any AI f
 ## Install
 
 ```sh
-git clone https://github.com/guyr989/focus-monitor && cd focus-monitor
+git clone https://github.com/guyr989/focus-doctor && cd focus-doctor
 ./scripts/install.sh
 ```
 
@@ -65,7 +65,7 @@ Verdicts are cached per (task, window title) for a week, so the model is asked o
 
 ### Optional: Google Tasks
 
-"Save for later" always writes to the local backlog. To also push into Google Tasks: create an OAuth *Desktop app* client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with the Tasks API enabled, save it as `~/.config/focus-monitor/google.json` (`{"client_id": "...", "client_secret": "..."}`), then `focus google login`.
+"Save for later" always writes to the local backlog. To also push into Google Tasks: create an OAuth *Desktop app* client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) with the Tasks API enabled, save it as `~/.config/focus-doctor/google.json` (`{"client_id": "...", "client_secret": "..."}`), then `focus google login`.
 
 ## Everyday commands
 

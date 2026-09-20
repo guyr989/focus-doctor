@@ -10,7 +10,7 @@ import {Store} from './store/db.js';
 import {activeTask, promote} from './tasks/queue.js';
 import type {RuleEffect} from './types.js';
 
-const USAGE = `focus — command line for focus-monitor
+const USAGE = `focus — command line for focus-doctor
 
   focus task add <title>          add a task (goes to the bottom of the queue)
   focus task list                 show the queue; * marks the active task
@@ -25,12 +25,12 @@ const USAGE = `focus — command line for focus-monitor
   focus flash <text>              show a level-1 flash now (tests the extension)
   focus settings                  open the settings page in your browser
   focus config list|get <key>|set <key> <value>
-  focus google login              connect Google Tasks (needs ~/.config/focus-monitor/google.json)
+  focus google login              connect Google Tasks (needs ~/.config/focus-doctor/google.json)
   focus llm test <window title>   ask the AI how it would judge a title for the active task
   focus cache clear               forget all AI verdicts (after changing a task's wording)
   focus doctor                    check every moving part`;
 
-const DBUS = ['--user', 'call', 'org.guyr.FocusMonitor', '/org/guyr/FocusMonitor', 'org.guyr.FocusMonitor'];
+const DBUS = ['--user', 'call', 'org.guyr.FocusDoctor', '/org/guyr/FocusDoctor', 'org.guyr.FocusDoctor'];
 const SAMPLE = {task: 'Client invoice PDF', app: 'kdenlive', title: 'mockup_bg.mp4 - Kdenlive', driftSeconds: 600, snoozeMinutes: 5, snoozePresets: [5, 10, 15, 30, 60]};
 
 const sh = (cmd: string, args: string[]) => spawnSync(cmd, args, {encoding: 'utf8'});
@@ -38,10 +38,10 @@ const ok = (label: string, pass: boolean, hint = '') =>
   console.log(`${pass ? '✔' : '✘'} ${label}${pass || !hint ? '' : `  → ${hint}`}`);
 
 async function doctor(): Promise<void> {
-  const ext = sh('gnome-extensions', ['info', 'focus-monitor@guyr989']).stdout;
-  ok('GNOME extension active', /State: ACTIVE/.test(ext), 'gnome-extensions enable focus-monitor@guyr989, then log out and in');
-  ok('extension reachable on D-Bus', /org\.guyr\.FocusMonitor/.test(sh('busctl', ['--user', 'list']).stdout), 'extension not exporting its D-Bus name');
-  ok('daemon service running', sh('systemctl', ['--user', 'is-active', 'focus-monitord']).stdout.trim() === 'active', 'systemctl --user start focus-monitord');
+  const ext = sh('gnome-extensions', ['info', 'focus-doctor@guyr989']).stdout;
+  ok('GNOME extension active', /State: ACTIVE/.test(ext), 'gnome-extensions enable focus-doctor@guyr989, then log out and in');
+  ok('extension reachable on D-Bus', /org\.guyr\.FocusDoctor/.test(sh('busctl', ['--user', 'list']).stdout), 'extension not exporting its D-Bus name');
+  ok('daemon service running', sh('systemctl', ['--user', 'is-active', 'focus-doctord']).stdout.trim() === 'active', 'systemctl --user start focus-doctord');
   try {
     const store = Store.open(config.dbPath);
     ok(`database writable (${config.dbPath})`, true);

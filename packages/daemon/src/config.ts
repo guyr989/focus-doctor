@@ -1,10 +1,10 @@
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 
-const configDir = join(homedir(), '.config/focus-monitor');
+const configDir = join(homedir(), '.config/focus-doctor');
 
 export const config = {
-  dbPath: process.env.FOCUS_DB ?? join(homedir(), '.local/share/focus-monitor/focus.db'),
+  dbPath: process.env.FOCUS_DB ?? join(homedir(), '.local/share/focus-doctor/focus.db'),
   port: Number(process.env.FOCUS_PORT ?? 47113),
   googleCredentialsPath: join(configDir, 'google.json'),
   googleTokenPath: join(configDir, 'google-token.json'),

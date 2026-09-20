@@ -1,0 +1,8 @@
+{
+  "uuid": "focus-doctor@guyr989",
+  "name": "Focus Doctor",
+  "description": "Reports the focused window to focus-doctord and shows its interventions",
+  "shell-version": ["50"],
+  "url": "https://github.com/guyr989/focus-doctor",
+  "version": 1
+}

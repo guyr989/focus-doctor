@@ -4,7 +4,7 @@ Every non-obvious choice, the alternatives rejected, and what it costs to switch
 Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 
 ## D1 — Read the focused window from a GNOME Shell extension
-- **Chosen:** GJS extension exporting `org.guyr.FocusMonitor` on D-Bus.
+- **Chosen:** GJS extension exporting `org.guyr.FocusDoctor` on D-Bus.
 - **Rejected:** `xdotool`/`wmctrl` (X11 only, blind to Wayland windows); `org.gnome.Shell.Eval` (locked unless unsafe-mode, not supportable); AT-SPI accessibility tree (fragile, per-app opt-in).
 - **Why:** Verified on GNOME 50.1: nothing outside the compositor can see window titles.
 - **Switch cost:** 1 file — `packages/daemon/src/adapters/gnome.ts` implements the `Shell` interface. A KDE/Hyprland/X11 adapter is a sibling file.
@@ -61,7 +61,7 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Chosen:** One `ModalDialog` whose button row is swapped between stages (main → snooze presets → custom minutes; main → more). Seven actions never share one row.
 - **Rejected:** A custom full-screen St widget (more code, no free keyboard handling, input grab to write by hand); a GTK window (cannot be always-on-top on Wayland).
 - **Why:** `ModalDialog` gives an input grab, Escape/Enter handling and the system dialog look for free.
-- **Switch cost:** `packages/gnome-extension/focus-monitor@guyr989/ui/overlay.js`; the daemon only sees `OverlayAction` JSON.
+- **Switch cost:** `packages/gnome-extension/focus-doctor@guyr989/ui/overlay.js`; the daemon only sees `OverlayAction` JSON.
 
 ## D12 — "Override settings at runtime" = two concrete escape hatches
 - **Interpretation:** From the overlay you can (a) allow the current app for the rest of today (a task-scoped `allow` rule with an expiry), or (b) drop to notifications-only for the rest of today (caps the level at 2). Both expire at local midnight so a bad day doesn't silently disable the tool forever.
@@ -87,7 +87,7 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **Switch cost:** the page is one file; the JSON API under `/api/` in `http/routes.ts` stays for any other frontend.
 
 ## D17 — Google Tasks needs your own OAuth client
-- Google doesn't allow shipping a shared client secret in an open-source desktop app, so you create a Desktop OAuth client once and drop it in `~/.config/focus-monitor/google.json`. Sync is an outbox with 5 retries; the local backlog is always authoritative.
+- Google doesn't allow shipping a shared client secret in an open-source desktop app, so you create a Desktop OAuth client once and drop it in `~/.config/focus-doctor/google.json`. Sync is an outbox with 5 retries; the local backlog is always authoritative.
 - **Rejected:** Google Keep (no consumer API); `gkeepapi` (reverse-engineered, needs a master token).
 - **Switch cost:** `sync/googleTasks.ts` implements `push(title, notes)`; a Markdown-file or Todoist sink is a sibling file.
 
@@ -95,3 +95,7 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - The four desktop ports (`SignalSource`, `Notifier`, `ActionSource`, `IdleMonitor`) became one `Shell` interface in `types.ts`. Still one file to implement for KDE/Hyprland — just one interface instead of four.
 - Dropped: `TabSource` wrapper (daemon takes the `LocalServer` directly), live heartbeat rescheduling (`heartbeat_seconds` now needs a daemon restart), `SETTING` constant (string keys typed by `SettingKey`), `max_level`+`max_level_until` (now a single `notify_only_until`), `Settings.numbers()`, the `openSettings` effect flag, and the `pendingRedirect` side-channel in Google login.
 - **Switch cost:** each is a mechanical re-split; nothing architectural moved.
+
+## D19 — Renamed Focus Monitor → Focus Doctor (2026-09-20)
+- Every identifier changed: package `focus-doctord`, systemd unit `focus-doctord.service`, D-Bus `org.guyr.FocusDoctor`, extension `focus-doctor@guyr989`, data dir `~/.local/share/focus-doctor`, repo `guyr989/focus-doctor`. The `focus` command is unchanged on purpose — it's typed many times a day.
+- Old GitHub URL redirects. The old data directory was moved, not copied, so no state was lost.

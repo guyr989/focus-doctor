@@ -1,8 +1,8 @@
 import dbus, {type ClientInterface, type MessageBus} from 'dbus-next';
 import type {OverlayAction, OverlayPayload, Shell, Signal} from '../types.js';
 
-const NAME = 'org.guyr.FocusMonitor';
-const PATH = '/org/guyr/FocusMonitor';
+const NAME = 'org.guyr.FocusDoctor';
+const PATH = '/org/guyr/FocusDoctor';
 const IDLE_NAME = 'org.gnome.Mutter.IdleMonitor';
 const IDLE_PATH = '/org/gnome/Mutter/IdleMonitor/Core';
 

@@ -5,7 +5,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const IFACE = `
 <node>
-  <interface name="org.guyr.FocusMonitor">
+  <interface name="org.guyr.FocusDoctor">
     <method name="GetFocusedWindow"><arg type="s" direction="out" name="json"/></method>
     <method name="ShowFlash"><arg type="s" direction="in" name="text"/></method>
     <signal name="FocusChanged"><arg type="s" name="json"/></signal>
@@ -17,11 +17,11 @@ function describe(win) {
     return {wm_class: win.get_wm_class(), title: win.get_title(), pid: win.get_pid()};
 }
 
-export default class FocusMonitorExtension extends Extension {
+export default class FocusDoctorExtension extends Extension {
     enable() {
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
-        this._dbus.export(Gio.DBus.session, '/org/guyr/FocusMonitor');
-        this._nameId = Gio.DBus.session.own_name('org.guyr.FocusMonitor',
+        this._dbus.export(Gio.DBus.session, '/org/guyr/FocusDoctor');
+        this._nameId = Gio.DBus.session.own_name('org.guyr.FocusDoctor',
             Gio.BusNameOwnerFlags.NONE, null, null);
         global.display.connectObject('notify::focus-window', () => this._onFocus(), this);
         this._onFocus();
