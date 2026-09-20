@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import {dirname} from 'node:path';
-import type {Rule, Task, TaskStatus, Verdict} from '../types.js';
+import type {Rule, RuleSource, Task, TaskStatus, Verdict} from '../types.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS tasks (
@@ -43,7 +43,7 @@ export interface VerdictRow {
 export class Store {
   private constructor(private readonly db: DatabaseSync) {
     db.exec(SCHEMA);
-    for (const sql of ['ALTER TABLE rules ADD COLUMN expires_at INTEGER', 'ALTER TABLE verdicts ADD COLUMN probability REAL']) {
+    for (const sql of ['ALTER TABLE rules ADD COLUMN expires_at INTEGER', 'ALTER TABLE verdicts ADD COLUMN probability REAL', "ALTER TABLE rules ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'"]) {
       try {
         db.exec(sql);
       } catch {}
@@ -82,18 +82,32 @@ export class Store {
 
   rules(nowSeconds = Math.floor(Date.now() / 1000)): Rule[] {
     return (this.db
-      .prepare('SELECT id, task_id AS taskId, pattern, effect FROM rules WHERE expires_at IS NULL OR expires_at > ?')
+      .prepare('SELECT id, task_id AS taskId, pattern, effect, source FROM rules WHERE expires_at IS NULL OR expires_at > ?')
       .all(nowSeconds) as unknown) as Rule[];
   }
 
   addRule(rule: Rule, expiresAtSeconds: number | null = null): void {
     this.db
-      .prepare('INSERT INTO rules (task_id, pattern, effect, expires_at) VALUES (?, ?, ?, ?)')
-      .run(rule.taskId, rule.pattern, rule.effect, expiresAtSeconds);
+      .prepare('INSERT INTO rules (task_id, pattern, effect, expires_at, source) VALUES (?, ?, ?, ?, ?)')
+      .run(rule.taskId, rule.pattern, rule.effect, expiresAtSeconds, rule.source ?? 'manual');
   }
 
-  deleteRule(id: number): void {
-    this.db.prepare('DELETE FROM rules WHERE id = ?').run(id);
+  deleteRule(id: number): number {
+    return Number(this.db.prepare('DELETE FROM rules WHERE id = ?').run(id).changes);
+  }
+
+  deleteRulesByPattern(pattern: string): number {
+    return Number(this.db.prepare('DELETE FROM rules WHERE lower(pattern) = lower(?)').run(pattern).changes);
+  }
+
+  deleteRulesBySource(taskId: number | null, source: RuleSource): void {
+    this.db.prepare('DELETE FROM rules WHERE task_id IS ? AND source = ?').run(taskId, source);
+  }
+
+  taskByTitle(title: string): Task | null {
+    return (this.db
+      .prepare("SELECT id, title, priority, status FROM tasks WHERE lower(title) = lower(?) AND status != 'done' ORDER BY id LIMIT 1")
+      .get(title) as unknown as Task | undefined) ?? null;
   }
 
   taskById(id: number): Task | null {

@@ -57,7 +57,7 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
     }
     case 'confirm_on_task': {
       const pattern = ctx.signal.host ?? ctx.signal.app ?? '';
-      store.addRule({taskId: ctx.task.id, pattern, effect: 'allow'});
+      store.addRule({taskId: ctx.task.id, pattern, effect: 'allow', source: 'learned'});
       return {resetDrift: true, message: `learned: "${pattern}" is part of "${ctx.task.title}"`};
     }
     case 'settings':

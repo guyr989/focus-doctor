@@ -41,12 +41,33 @@ git clone https://github.com/guyr989/focus-doctor && cd focus-doctor
 Log out and back in once (Wayland can't load a new extension live). Then:
 
 ```sh
-focus doctor                                # every line should be ✔
-focus task add "Client invoice PDF"         # what you should be doing
-focus rule add deny kdenlive                # what counts as drifting
-focus rule add --task 1 allow invoice       # what counts as on-task for task #1
-focus simulate 3                            # see the overlay right now
-focus settings                              # opens the settings page
+focus doctor          # every line should be ✔
+cd ~/projects/client-site
+focus init            # guided setup: task name, distractions, allowed apps → writes FOCUS.md
+focus init --global   # distractions that apply to every project
+focus simulate 3      # see the overlay right now
+```
+
+## Per-project rules
+
+Each project gets a `FOCUS.md` (created by `focus init`, or by hand):
+
+```
+task: Build client website
+allow: code, localhost, figma.com
+deny: youtube.com, kdenlive
+```
+
+`focus use` in that folder (or any subfolder) makes it the active task and loads its rules; run it again in another project to switch. Global rules in `~/.config/focus-doctor/FOCUS.md` apply everywhere. Reloading a file only replaces the rules that came from that file — anything you added with `focus rule add` or taught via *This was for the task* stays.
+
+Quick one-offs without a file:
+
+```sh
+focus task add "Client invoice PDF"
+focus rule add youtube.com                  # deny is the default
+focus rule add --task 1 allow invoice
+focus rule remove youtube.com               # by pattern or by id
+focus settings                              # the same, in a browser
 ```
 
 ### Optional: local AI for windows the rules don't cover

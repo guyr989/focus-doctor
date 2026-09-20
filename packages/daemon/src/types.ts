@@ -9,11 +9,14 @@ export interface Signal {
 
 export type RuleEffect = 'allow' | 'deny';
 
+export type RuleSource = 'manual' | 'file' | 'learned';
+
 export interface Rule {
   id?: number;
   taskId: number | null;
   pattern: string;
   effect: RuleEffect;
+  source?: RuleSource;
 }
 
 export type TaskStatus = 'active' | 'backlog' | 'done';

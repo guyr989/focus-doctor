@@ -110,3 +110,12 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 
 ## D21 — "This was for the task" learns a permanent, task-scoped allow rule
 - The model can't tell WhatsApp-with-the-client from WhatsApp-with-a-friend; you can. One click on the overlay or the level-2 notification adds an allow rule for that app/site **for the current task only**, no expiry. Distinct from "Allow this app today" (expires at midnight) and "Make this my task" (new task).
+
+## D22 — Per-project rules live in a `FOCUS.md` next to the code; `focus use` loads it
+- **Chosen:** a plain-text file with `task:`, `allow:`, `deny:` lines (anything else is a note). `focus init` writes it through a guided prompt; `focus use` (from that folder or any child) loads it into the daemon and makes the task active. Global rules are the same format at `~/.config/focus-doctor/FOCUS.md`.
+- **Rejected:** auto-detecting the project from window titles (browser tabs and video editors carry no folder name — fails exactly when it matters); JSON/YAML/TOML (a dependency or a hand-edited syntax that breaks on a comma).
+- **Rules remember where they came from** (`source`: `manual` | `file` | `learned`). Reloading a file replaces only its own rules, so rules you added by hand or taught via "This was for the task" survive.
+- **Switch cost:** `packages/daemon/src/project.ts` — parse/format/sync in ~60 lines.
+
+## D23 — `focus rule add <pattern>` defaults to deny
+- Nine times out of ten a bare pattern is a distraction. Omitting `allow|deny` used to dump a stack trace; now it's a deny, and every usage mistake prints one line plus `run \`focus\` for usage`.
