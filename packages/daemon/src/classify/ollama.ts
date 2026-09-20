@@ -1,4 +1,3 @@
-import {signalText} from './rules.js';
 import type {Signal, Task} from '../types.js';
 
 /** pOff = probability the screen is off task; null = the model could not decide (fail open). */
@@ -14,12 +13,13 @@ export interface OllamaOptions {
   keepAlive?: string;
 }
 
-const SYSTEM = 'Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation.';
-const OPTIONS = [
-  {letter: 'A', description: 'on task — plausibly part of doing the task (its tools, docs, research, or communication for it)'},
-  {letter: 'B', description: 'off task — leisure, entertainment, or a different project'},
-];
-const HARD_VOTE = {A: 0.15, B: 0.85} as const;
+/** Unlike rules.signalText this keeps case: "Steam" and "ESPN" are brand cues the model needs. */
+const screenText = (s: Signal) => [s.app, s.title, s.host, s.pageTitle].filter(Boolean).join(' | ');
+
+const SYSTEM = 'Answer with exactly one word, either work or fun. Nothing else.';
+const ON_WORD = 'work';
+const OFF_WORD = 'fun';
+const HARD_VOTE = {work: 0.15, fun: 0.85} as const;
 
 interface TokenLogprob {
   token: string;
@@ -32,15 +32,16 @@ interface ChatResponse {
 
 export function decide(data: ChatResponse): LlmDecision {
   const top = data.logprobs?.[0]?.top_logprobs ?? [];
-  const lp = (letter: string) => top.find(t => t.token.trim() === letter)?.logprob;
-  const a = lp('A');
-  const b = lp('B');
-  if (a !== undefined && b !== undefined) {
-    const pOff = 1 / (1 + Math.exp(a - b));
+  /** A word can be tokenised several ways ("fun", " Fun", "FUN"); sum the mass of every spelling. */
+  const mass = (word: string) => top.reduce((m, t) => (t.token.trim().toLowerCase() === word ? m + Math.exp(t.logprob) : m), 0);
+  const on = mass(ON_WORD);
+  const off = mass(OFF_WORD);
+  if (on + off > 0) {
+    const pOff = off / (on + off);
     return {pOff, reason: `off ${pOff.toFixed(2)}`};
   }
-  const letter = data.message?.content?.trim().toUpperCase();
-  if (letter === 'A' || letter === 'B') return {pOff: HARD_VOTE[letter], reason: `off ${HARD_VOTE[letter]} (vote)`};
+  const word = data.message?.content?.trim().toLowerCase();
+  if (word === ON_WORD || word === OFF_WORD) return {pOff: HARD_VOTE[word], reason: `off ${HARD_VOTE[word]} (vote)`};
   return {pOff: null, reason: 'no decision'};
 }
 
@@ -64,11 +65,10 @@ export class OllamaClassifier {
             {role: 'system', content: SYSTEM},
             {
               role: 'user',
-              content: JSON.stringify({
-                evidence: `Task: ${task.title}\nOn screen: ${signalText(signal)}`,
-                criterion: 'What is on screen is unrelated to the task',
-                options: OPTIONS,
-              }),
+              content:
+                `Someone should be working on: ${task.title}\n\n` +
+                `Their screen shows: ${screenText(signal)}\n\n` +
+                'Is this screen work (related to that task) or fun (leisure, entertainment, shopping, or an unrelated project)? Answer work or fun.',
             },
           ],
         }),

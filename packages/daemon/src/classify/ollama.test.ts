@@ -36,16 +36,25 @@ describe('OllamaClassifier (fail open)', () => {
 });
 
 describe('decide (probability from token logprobs)', () => {
-  it('softmaxes over the A/B option tokens only', () => {
+  it('normalises over the work/fun tokens only, ignoring everything else', () => {
     const d = decide({
-      message: {content: 'A'},
-      logprobs: [{token: 'A', logprob: -0.2, top_logprobs: [{token: 'A', logprob: -0.2}, {token: 'The', logprob: -0.9}, {token: ' B', logprob: -1.7}]}],
+      message: {content: 'work'},
+      logprobs: [{token: 'work', logprob: -0.2, top_logprobs: [{token: 'work', logprob: -0.2}, {token: 'The', logprob: -0.9}, {token: ' fun', logprob: -1.7}]}],
     });
     expect(d.pOff).toBeCloseTo(0.18, 2);
   });
 
+  it('sums the mass of every spelling of the same word', () => {
+    const half = Math.log(0.25);
+    const d = decide({
+      message: {content: 'fun'},
+      logprobs: [{token: 'fun', logprob: half, top_logprobs: [{token: 'fun', logprob: half}, {token: ' Fun', logprob: half}, {token: 'work', logprob: Math.log(0.5)}]}],
+    });
+    expect(d.pOff).toBeCloseTo(0.5, 2);
+  });
+
   it('falls back to a hard vote when logprobs are missing', () => {
-    expect(decide({message: {content: 'B'}}).pOff).toBe(0.85);
-    expect(decide({message: {content: ' a\n'}}).pOff).toBe(0.15);
+    expect(decide({message: {content: 'fun'}}).pOff).toBe(0.85);
+    expect(decide({message: {content: ' Work\n'}}).pOff).toBe(0.15);
   });
 });

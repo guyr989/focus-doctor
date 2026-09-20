@@ -8,7 +8,7 @@ export const DEFAULTS = {
   heartbeat_seconds: '30',
   llm_enabled: '1',
   ollama_model: 'qwen2.5:3b',
-  off_task_threshold: '0.7',
+  off_task_threshold: '0.6',
   notify_only_until: '0',
   snoozed_until: '0',
   last_snooze_minutes: '5',
