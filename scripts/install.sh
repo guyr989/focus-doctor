@@ -15,7 +15,10 @@ sed -e "s|@NODE@|$NODE|" -e "s|@ROOT@|$ROOT|" "$ROOT/scripts/focus-monitord.serv
 systemctl --user daemon-reload
 systemctl --user enable focus-monitord >/dev/null && systemctl --user restart focus-monitord
 
-gnome-extensions enable focus-monitor@guyr989 || true
+# Add to the enabled list directly: `gnome-extensions enable` fails until the Shell has seen the extension.
+gsettings get org.gnome.shell enabled-extensions | grep -q focus-monitor@guyr989 || \
+  gsettings set org.gnome.shell enabled-extensions "$(gsettings get org.gnome.shell enabled-extensions | sed "s/]$/, 'focus-monitor@guyr989']/; s/@as \[\]/['focus-monitor@guyr989']/")"
+gnome-extensions enable focus-monitor@guyr989 2>/dev/null || true
 cat <<MSG
 
 Installed. Two things only you can do:
