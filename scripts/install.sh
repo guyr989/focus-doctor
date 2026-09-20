@@ -25,3 +25,8 @@ Installed. Two things only you can do:
   1. Log out and back in once so GNOME loads the extension (Wayland cannot reload it live).
   2. Then run:  focus doctor
 MSG
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) cat <<MSG
+Note: ~/.local/bin is not on your PATH, so \`focus\` won't be found. Add it with:
+  echo 'export PATH="\$HOME/.local/bin:\$PATH"' >> ~/.zshrc && source ~/.zshrc
+MSG
+esac
