@@ -3,8 +3,11 @@ import type {OllamaClassifier} from './ollama.js';
 import {matchRules} from './rules.js';
 import type {Rule, Signal, Task, Verdict} from '../types.js';
 
+const UNAVAILABLE_LOG_INTERVAL_MS = 10 * 60 * 1000;
+
 export class ClassifierChain {
   private inFlight = new Map<string, Promise<Verdict>>();
+  private unavailableLoggedAt = 0;
 
   constructor(
     private readonly cache: VerdictCache,
@@ -37,7 +40,10 @@ export class ClassifierChain {
     const {pOff, reason} = await this.llm!.classify(signal, task);
     const secs = ((Date.now() - started) / 1000).toFixed(1);
     if (pOff === null) {
-      this.log(`llm unavailable (${reason}) — treating as on task`);
+      if (nowMs - this.unavailableLoggedAt >= UNAVAILABLE_LOG_INTERVAL_MS) {
+        this.unavailableLoggedAt = nowMs;
+        this.log(`llm unavailable (${reason}) — treating as on task`);
+      }
       return 'unknown';
     }
     const verdict = this.fromProbability(pOff);
