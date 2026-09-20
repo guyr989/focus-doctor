@@ -119,3 +119,22 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 
 ## D23 — `focus rule add <pattern>` defaults to deny
 - Nine times out of ten a bare pattern is a distraction. Omitting `allow|deny` used to dump a stack trace; now it's a deny, and every usage mistake prints one line plus `run \`focus\` for usage`.
+
+## D24 — D20's prompt was degenerate; replaced by work/fun, with an eval set that gates it (2026-09-20)
+- **What was wrong:** the first time Ollama actually ran, the D20 prompt ("apply the criterion … choose A or B") returned p(off)=1.00 for *every* input — `chain.ts — VS Code`, this repo on GitHub, `pnpm test` — all "off task". It had never been measured against this model; the unit tests covered `decide()`'s arithmetic, not its answers. Two smaller bugs hid under it: `decide()` matched one exact token, dropping mass on `Fun`/` fun` spellings; and the prompt reused `rules.signalText`, which lowercases — `steam`, `espn`, `instagram` lose the capitalization a small model leans on.
+- **Chosen:** plain question, one-word answer — "Is this screen work (related to that task) or fun (leisure, entertainment, shopping, or an unrelated project)?" — probability = mass(fun) / (mass(work) + mass(fun)), summed over every spelling. Input keeps its case (`screenText` in `ollama.ts`). Default `off_task_threshold` 0.7 → 0.6. The logprob technique from D20 stays; only the wording and the answer tokens changed.
+- **Measured** (`pnpm eval`, 23 titles, 2 tasks, threshold 0.6):
+
+  | | on-task kept | off-task caught |
+  |---|---|---|
+  | D20 prompt, qwen2.5:3b | 0/12 | 11/11 |
+  | work/fun, lowercased input | 11/12 | 5/11 |
+  | **work/fun, case kept (shipped)** | **12/12** | **7/11** |
+  | work/fun, qwen2.5:7b | 12/12 | 8/11 |
+
+  Five other prompt shapes scored between them; none kept all on-task titles.
+- **Rejected:** qwen2.5:7b — one more catch for 5.1 GB resident vs 2.2 GB on a 10 GB laptop, ~2.5× slower on a prompt-prefix miss, and a new failure: it anchors on the task title (under "write the Q3 investor update" it calls Twitch, Spotify and Zillow *work*). Threshold below 0.6 — the highest on-task score is 0.51; the margin is already thin.
+- **What still misses:** Booking, ESPN, Instagram, Zillow — nameable sites. `deny:` lines cover them; the model is for what you can't name.
+- **The gate:** `packages/daemon/src/classify/eval/` — `cases.json` (only clear-cut titles; arguable ones are not ground truth) and `run.ts`, which imports the real `OllamaClassifier` so it measures the prompt that ships. `pnpm eval` exits non-zero below the recorded baseline; `pnpm eval <model>` scores any pulled model. There is no CI, so this is a convention, not a hard block — run it before touching `ollama.ts` or the threshold.
+- **Also fixed on the way:** `pnpm dev` never worked — Node's type stripping doesn't rewrite `./x.js` imports to `.ts`. `dev` and `eval` now run the built output.
+- **Switch cost:** the prompt is four lines in `ollama.ts`; a different model is one setting; both are re-scored in two minutes.
