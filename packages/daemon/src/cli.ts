@@ -77,7 +77,14 @@ async function doctor(): Promise<void> {
 
 async function init(store: Store, global: boolean): Promise<void> {
   const rl = createInterface({input: stdin, output: stdout});
-  const ask = async (q: string, def = ''): Promise<string> => (await rl.question(def ? `${q} [${def}]: ` : `${q}: `)).trim() || def;
+  const lines: string[] = [];
+  let waiting: ((line: string) => void) | null = null;
+  rl.on('line', line => (waiting ? (waiting = (waiting(line), null)) : lines.push(line)));
+  rl.on('close', () => waiting?.(''));
+  const ask = (q: string, def = ''): Promise<string> => {
+    stdout.write(def ? `${q} [${def}]: ` : `${q}: `);
+    return new Promise<string>(resolve => (lines.length ? resolve(lines.shift()!) : (waiting = resolve))).then(v => v.trim() || def);
+  };
   const list = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
   try {
     const path = global ? GLOBAL_FILE : join(process.cwd(), PROJECT_FILE);
