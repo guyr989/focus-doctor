@@ -2,8 +2,6 @@
 import {spawnSync} from 'node:child_process';
 import {DESCRIPTIONS, Settings} from './settings.js';
 import {GoogleTasks, openInBrowser} from './sync/googleTasks.js';
-import {VerdictCache} from './classify/cache.js';
-import {ClassifierChain} from './classify/chain.js';
 import {OllamaClassifier} from './classify/ollama.js';
 import {config} from './config.js';
 import {Store} from './store/db.js';
@@ -67,10 +65,13 @@ async function main(argv: string[]): Promise<void> {
     const store = Store.open(config.dbPath);
     const task = activeTask(store.tasks());
     if (!task) return console.log('no active task');
-    const llm = new OllamaClassifier({url: config.ollamaUrl, model: new Settings(store).get('ollama_model'), timeoutMs: config.ollamaTimeoutMs});
-    const chain = new ClassifierChain(new VerdictCache(store, 0), llm, console.log);
-    const verdict = await chain.classify({app: null, title: rest.join(' ')}, task, [], Date.now());
-    console.log(`verdict for task "${task.title}": ${verdict}`);
+    const settings = new Settings(store);
+    const llm = new OllamaClassifier({url: config.ollamaUrl, model: settings.get('ollama_model'), timeoutMs: config.ollamaTimeoutMs});
+    const started = Date.now();
+    const {pOff, reason} = await llm.classify({app: null, title: rest.join(' ')}, task);
+    const threshold = settings.number('off_task_threshold');
+    const verdict = pOff === null ? 'unknown (treated as on task)' : pOff >= threshold ? 'off task' : 'on task';
+    console.log(`task "${task.title}"\noff-task probability: ${pOff === null ? '-' : pOff.toFixed(2)}  (threshold ${threshold})  → ${verdict}  [${reason}, ${((Date.now() - started) / 1000).toFixed(1)}s]`);
     return store.close();
   }
   if (group === 'flash' || group === 'simulate') {

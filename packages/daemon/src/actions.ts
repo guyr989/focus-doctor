@@ -55,6 +55,11 @@ export function applyAction(store: Store, action: OverlayAction, ctx: ActionCont
       store.setSetting('notify_only_until', until);
       return {message: 'notifications only for the rest of today'};
     }
+    case 'confirm_on_task': {
+      const pattern = ctx.signal.host ?? ctx.signal.app ?? '';
+      store.addRule({taskId: ctx.task.id, pattern, effect: 'allow'});
+      return {resetDrift: true, message: `learned: "${pattern}" is part of "${ctx.task.title}"`};
+    }
     case 'settings':
       openInBrowser(`http://127.0.0.1:${config.port}/`);
       return {message: 'opening settings page'};

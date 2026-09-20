@@ -35,6 +35,7 @@ export interface VerdictRow {
   key: string;
   taskId: number;
   verdict: Verdict;
+  probability: number | null;
   reason: string;
   createdAt: number;
 }
@@ -42,9 +43,11 @@ export interface VerdictRow {
 export class Store {
   private constructor(private readonly db: DatabaseSync) {
     db.exec(SCHEMA);
-    try {
-      db.exec('ALTER TABLE rules ADD COLUMN expires_at INTEGER');
-    } catch {}
+    for (const sql of ['ALTER TABLE rules ADD COLUMN expires_at INTEGER', 'ALTER TABLE verdicts ADD COLUMN probability REAL']) {
+      try {
+        db.exec(sql);
+      } catch {}
+    }
   }
 
   static open(path: string): Store {
@@ -132,15 +135,15 @@ export class Store {
 
   getVerdict(key: string): VerdictRow | null {
     const row = this.db
-      .prepare('SELECT key, task_id AS taskId, verdict, reason, created_at AS createdAt FROM verdicts WHERE key = ?')
+      .prepare('SELECT key, task_id AS taskId, verdict, probability, reason, created_at AS createdAt FROM verdicts WHERE key = ?')
       .get(key) as unknown as VerdictRow | undefined;
     return row ?? null;
   }
 
   putVerdict(v: VerdictRow): void {
     this.db
-      .prepare('INSERT OR REPLACE INTO verdicts (key, task_id, verdict, reason, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(v.key, v.taskId, v.verdict, v.reason, v.createdAt);
+      .prepare('INSERT OR REPLACE INTO verdicts (key, task_id, verdict, probability, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(v.key, v.taskId, v.verdict, v.probability, v.reason, v.createdAt);
   }
 
   clearVerdicts(): number {

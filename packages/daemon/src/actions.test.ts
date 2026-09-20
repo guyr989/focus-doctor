@@ -36,6 +36,15 @@ describe('overlay actions', () => {
     expect(store.getSetting('last_snooze_minutes')).toBe('15');
   });
 
+  it('confirm-on-task learns a permanent allow rule scoped to the active task', () => {
+    const {store, ctx} = setup();
+    applyAction(store, {action: 'confirm_on_task'}, ctx);
+    const tenYears = Math.floor(ctx.nowMs / 1000) + 10 * 365 * 86_400;
+    const rule = store.rules(tenYears).find(r => r.effect === 'allow');
+    expect(rule?.taskId).toBe(ctx.task.id);
+    expect(rule?.pattern).toBe('kdenlive');
+  });
+
   it('allow-app-today rule expires at midnight', () => {
     const {store, ctx} = setup();
     applyAction(store, {action: 'override', kind: 'allow_app_today'}, ctx);

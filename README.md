@@ -57,7 +57,9 @@ ollama pull qwen2.5:3b                           # ~2 GB; qwen2.5:1.5b if it fee
 focus llm test "Blender Donut Tutorial - YouTube"
 ```
 
-Verdicts are cached per (task, window title) for a week, so the model is asked only about genuinely new things. `focus config set llm_enabled 0` turns it off.
+The model doesn't write an answer — Focus Doctor reads the probability it assigns to "off task" in a single step (the same trick as Jev-style decision models, but local). Anything at or above `off_task_threshold` (default 0.7) counts as drift; lower the number for a stricter monitor, raise it for a more forgiving one. Verdicts are cached per (task, window title) for a week, so the model is asked only about genuinely new things. `focus config set llm_enabled 0` turns it off.
+
+When it gets one wrong, click **This was for the task** on the notification or overlay — that app/site is then always allowed for that task.
 
 ### Optional: browser tabs
 

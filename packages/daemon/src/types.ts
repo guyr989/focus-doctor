@@ -35,7 +35,7 @@ export interface OverlayPayload {
 }
 
 export type OverlayAction =
-  | {action: 'dismiss' | 'ack' | 'defer' | 'promote' | 'settings'}
+  | {action: 'dismiss' | 'ack' | 'defer' | 'promote' | 'settings' | 'confirm_on_task'}
   | {action: 'snooze'; minutes: number}
   | {action: 'override'; kind: 'allow_app_today' | 'notify_only_today'};
 

@@ -28,6 +28,7 @@ export const FocusOverlay = GObject.registerClass({
         const last = this._payload.snoozeMinutes;
         this.setButtons([
             {label: 'Back to task', action: () => this._choose('dismiss'), key: Clutter.KEY_Escape, default: true},
+            {label: 'This was for the task', action: () => this._choose('confirm_on_task')},
             {label: `Snooze ${last} min`, action: () => this._choose('snooze', {minutes: last})},
             {label: 'Snooze…', action: () => this._stageSnooze()},
             {label: 'Save for later', action: () => this._choose('defer')},

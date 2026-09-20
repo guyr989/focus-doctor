@@ -18,7 +18,7 @@ const llm = new OllamaClassifier({url: config.ollamaUrl, model: settings.get('ol
 const classifier = new ClassifierChain(new VerdictCache(store, config.verdictTtlSeconds), llm, console.log, () => {
   llm.opts.model = settings.get('ollama_model');
   return settings.get('llm_enabled') === '1';
-});
+}, () => settings.number('off_task_threshold'));
 const google = new GoogleTasks(config.googleCredentialsPath, config.googleTokenPath);
 const daemon = new Daemon({shell, classifier, google, settings, store, server: new LocalServer(config.port, makeRoutes(store, settings, t => daemon.onTab(t)))});
 

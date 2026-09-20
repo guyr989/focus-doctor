@@ -99,3 +99,14 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 ## D19 — Renamed Focus Monitor → Focus Doctor (2026-09-20)
 - Every identifier changed: package `focus-doctord`, systemd unit `focus-doctord.service`, D-Bus `org.guyr.FocusDoctor`, extension `focus-doctor@guyr989`, data dir `~/.local/share/focus-doctor`, repo `guyr989/focus-doctor`. The `focus` command is unchanged on purpose — it's typed many times a day.
 - Old GitHub URL redirects. The old data directory was moved, not copied, so no state was lost.
+
+## D20 — Jev evaluated; chose the same technique locally (2026-09-20)
+- **Question:** use TypeSafe's Jev (hosted "System One" decision model, typed calibrated probabilities, ~$0.04/M tokens, 70–500 ms) to judge focus?
+- **Chosen:** replicate the technique with the local model: one forward pass, read the log-probabilities of the answer tokens `A` (on task) / `B` (off task) from Ollama's `logprobs`, softmax over just those two. Output is a probability; `off_task_threshold` (default 0.7) turns it into a verdict and is applied to cached probabilities too, so retuning never re-asks the model.
+- **Rejected:** hosted Jev (window titles leave the machine; closed, waitlist-only, four days old, self-graded accuracy ~68%); Laya 421M (near-random zero-shot per its own model card).
+- **Why:** JevBench (independent) scores the open "SemIf" logprob technique within a point of Jev. Faster than our previous JSON generation (1 token vs ~15), nothing to parse, nothing leaves the machine.
+- **Switch cost:** hosted Jev would be a sibling of `classify/ollama.ts` returning the same `{pOff, reason}`; one setting to select it.
+- **Fallback chain:** logprobs → single-letter hard vote (0.15/0.85) → `unknown` (on task). Ollama versions without `logprobs` still work via the vote.
+
+## D21 — "This was for the task" learns a permanent, task-scoped allow rule
+- The model can't tell WhatsApp-with-the-client from WhatsApp-with-a-friend; you can. One click on the overlay or the level-2 notification adds an allow rule for that app/site **for the current task only**, no expiry. Distinct from "Allow this app today" (expires at midnight) and "Make this my task" (new task).

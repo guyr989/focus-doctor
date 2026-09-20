@@ -1,8 +1,9 @@
 import {signalText} from './rules.js';
-import type {Signal, Task, Verdict} from '../types.js';
+import type {Signal, Task} from '../types.js';
 
-export interface LlmVerdict {
-  verdict: Verdict;
+/** pOff = probability the screen is off task; null = the model could not decide (fail open). */
+export interface LlmDecision {
+  pOff: number | null;
   reason: string;
 }
 
@@ -13,21 +14,40 @@ export interface OllamaOptions {
   keepAlive?: string;
 }
 
-const SYSTEM = `You judge whether what a person has on screen serves the task they declared.
-Answer only JSON: {"verdict":"on_task"|"off_task","reason":"<10 words"}.
-on_task = plausibly part of doing the task (docs, tools, research for it).
-off_task = clearly leisure or a different project. When unsure, answer on_task.`;
+const SYSTEM = 'Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation.';
+const OPTIONS = [
+  {letter: 'A', description: 'on task — plausibly part of doing the task (its tools, docs, research, or communication for it)'},
+  {letter: 'B', description: 'off task — leisure, entertainment, or a different project'},
+];
+const HARD_VOTE = {A: 0.15, B: 0.85} as const;
 
-const SCHEMA = {
-  type: 'object',
-  properties: {verdict: {type: 'string', enum: ['on_task', 'off_task']}, reason: {type: 'string'}},
-  required: ['verdict', 'reason'],
-};
+interface TokenLogprob {
+  token: string;
+  logprob: number;
+}
+interface ChatResponse {
+  message?: {content?: string};
+  logprobs?: {token: string; logprob: number; top_logprobs?: TokenLogprob[]}[];
+}
+
+export function decide(data: ChatResponse): LlmDecision {
+  const top = data.logprobs?.[0]?.top_logprobs ?? [];
+  const lp = (letter: string) => top.find(t => t.token.trim() === letter)?.logprob;
+  const a = lp('A');
+  const b = lp('B');
+  if (a !== undefined && b !== undefined) {
+    const pOff = 1 / (1 + Math.exp(a - b));
+    return {pOff, reason: `off ${pOff.toFixed(2)}`};
+  }
+  const letter = data.message?.content?.trim().toUpperCase();
+  if (letter === 'A' || letter === 'B') return {pOff: HARD_VOTE[letter], reason: `off ${HARD_VOTE[letter]} (vote)`};
+  return {pOff: null, reason: 'no decision'};
+}
 
 export class OllamaClassifier {
   constructor(public opts: OllamaOptions) {}
 
-  async classify(signal: Signal, task: Task): Promise<LlmVerdict> {
+  async classify(signal: Signal, task: Task): Promise<LlmDecision> {
     try {
       const res = await fetch(`${this.opts.url}/api/chat`, {
         method: 'POST',
@@ -36,22 +56,27 @@ export class OllamaClassifier {
         body: JSON.stringify({
           model: this.opts.model,
           stream: false,
-          format: SCHEMA,
+          logprobs: true,
+          top_logprobs: 10,
           keep_alive: this.opts.keepAlive ?? '10m',
-          options: {temperature: 0},
+          options: {temperature: 0, num_predict: 1},
           messages: [
             {role: 'system', content: SYSTEM},
-            {role: 'user', content: `Task: ${task.title}\nOn screen: ${signalText(signal)}`},
+            {
+              role: 'user',
+              content: JSON.stringify({
+                evidence: `Task: ${task.title}\nOn screen: ${signalText(signal)}`,
+                criterion: 'What is on screen is unrelated to the task',
+                options: OPTIONS,
+              }),
+            },
           ],
         }),
       });
-      if (!res.ok) return {verdict: 'unknown', reason: `http ${res.status}`};
-      const data = (await res.json()) as {message?: {content?: string}};
-      const parsed = JSON.parse(data.message?.content ?? '') as Partial<LlmVerdict>;
-      if (parsed.verdict !== 'on_task' && parsed.verdict !== 'off_task') return {verdict: 'unknown', reason: 'bad verdict'};
-      return {verdict: parsed.verdict, reason: String(parsed.reason ?? '')};
+      if (!res.ok) return {pOff: null, reason: `http ${res.status}`};
+      return decide((await res.json()) as ChatResponse);
     } catch (err) {
-      return {verdict: 'unknown', reason: (err as Error).name === 'TimeoutError' ? 'timeout' : (err as Error).message};
+      return {pOff: null, reason: (err as Error).name === 'TimeoutError' ? 'timeout' : (err as Error).message};
     }
   }
 

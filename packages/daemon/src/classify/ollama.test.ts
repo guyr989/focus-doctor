@@ -1,6 +1,6 @@
 import {createServer, type Server} from 'node:http';
 import {afterEach, describe, expect, it} from 'vitest';
-import {OllamaClassifier} from './ollama.js';
+import {decide, OllamaClassifier} from './ollama.js';
 
 const task = {id: 1, title: 'client invoice', priority: 1, status: 'active' as const};
 const sig = {app: 'kdenlive', title: 'mockup_bg.mp4 - Kdenlive'};
@@ -16,27 +16,36 @@ const serve = (handler: Parameters<typeof createServer>[1]) =>
 afterEach(() => server?.close());
 
 describe('OllamaClassifier (fail open)', () => {
-  it('returns unknown quickly when the model hangs past the timeout', async () => {
+  it('returns no decision quickly when the model hangs past the timeout', async () => {
     const url = await serve(() => {});
     const c = new OllamaClassifier({url, model: 'x', timeoutMs: 200});
     const t = Date.now();
-    expect((await c.classify(sig, task)).verdict).toBe('unknown');
+    expect((await c.classify(sig, task)).pOff).toBeNull();
     expect(Date.now() - t).toBeLessThan(1000);
   });
 
-  it('returns unknown on garbage output', async () => {
-    const url = await serve((_req, res) => res.end(JSON.stringify({message: {content: 'not json'}})));
-    expect((await new OllamaClassifier({url, model: 'x', timeoutMs: 1000}).classify(sig, task)).verdict).toBe('unknown');
+  it('returns no decision on garbage output', async () => {
+    const url = await serve((_req, res) => res.end(JSON.stringify({message: {content: 'not a letter'}})));
+    expect((await new OllamaClassifier({url, model: 'x', timeoutMs: 1000}).classify(sig, task)).pOff).toBeNull();
   });
 
-  it('returns unknown when the server is down', async () => {
+  it('returns no decision when the server is down', async () => {
     const c = new OllamaClassifier({url: 'http://127.0.0.1:1', model: 'x', timeoutMs: 1000});
-    expect((await c.classify(sig, task)).verdict).toBe('unknown');
+    expect((await c.classify(sig, task)).pOff).toBeNull();
+  });
+});
+
+describe('decide (probability from token logprobs)', () => {
+  it('softmaxes over the A/B option tokens only', () => {
+    const d = decide({
+      message: {content: 'A'},
+      logprobs: [{token: 'A', logprob: -0.2, top_logprobs: [{token: 'A', logprob: -0.2}, {token: 'The', logprob: -0.9}, {token: ' B', logprob: -1.7}]}],
+    });
+    expect(d.pOff).toBeCloseTo(0.18, 2);
   });
 
-  it('parses a valid verdict', async () => {
-    const url = await serve((_req, res) => res.end(JSON.stringify({message: {content: '{"verdict":"off_task","reason":"video editing"}'}})));
-    const v = await new OllamaClassifier({url, model: 'x', timeoutMs: 1000}).classify(sig, task);
-    expect(v).toEqual({verdict: 'off_task', reason: 'video editing'});
+  it('falls back to a hard vote when logprobs are missing', () => {
+    expect(decide({message: {content: 'B'}}).pOff).toBe(0.85);
+    expect(decide({message: {content: ' a\n'}}).pOff).toBe(0.15);
   });
 });

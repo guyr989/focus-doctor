@@ -11,6 +11,7 @@ export class ClassifierChain {
     private readonly llm: OllamaClassifier | null,
     private readonly log: (msg: string) => void,
     private readonly enabled: () => boolean = () => true,
+    private readonly threshold: () => number = () => 0.7,
   ) {}
 
   async classify(signal: Signal, task: Task, rules: Rule[], nowMs: number): Promise<Verdict> {
@@ -18,7 +19,7 @@ export class ClassifierChain {
     if (byRule !== 'unknown' || !this.llm || !this.enabled()) return byRule;
     const key = cacheKey(task.id, signal);
     const cached = this.cache.get(key, nowMs);
-    if (cached) return cached;
+    if (cached) return cached.probability === null ? cached.verdict : this.fromProbability(cached.probability);
     let pending = this.inFlight.get(key);
     if (!pending) {
       pending = this.ask(key, signal, task, nowMs).finally(() => this.inFlight.delete(key));
@@ -27,16 +28,21 @@ export class ClassifierChain {
     return pending;
   }
 
+  private fromProbability(pOff: number): Verdict {
+    return pOff >= this.threshold() ? 'off_task' : 'on_task';
+  }
+
   private async ask(key: string, signal: Signal, task: Task, nowMs: number): Promise<Verdict> {
     const started = Date.now();
-    const {verdict, reason} = await this.llm!.classify(signal, task);
+    const {pOff, reason} = await this.llm!.classify(signal, task);
     const secs = ((Date.now() - started) / 1000).toFixed(1);
-    if (verdict === 'unknown') {
+    if (pOff === null) {
       this.log(`llm unavailable (${reason}) — treating as on task`);
       return 'unknown';
     }
-    this.cache.set(key, task.id, verdict, reason, nowMs);
-    this.log(`llm ${verdict} in ${secs}s: "${signal.title ?? signal.app}" — ${reason}`);
+    const verdict = this.fromProbability(pOff);
+    this.cache.set(key, task.id, verdict, pOff, reason, nowMs);
+    this.log(`llm ${verdict} (${reason}) in ${secs}s: "${signal.title ?? signal.app}"`);
     return verdict;
   }
 }
