@@ -8,10 +8,11 @@
     "focus": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp src/http/settings.html dist/http/",
+    "build": "tsc -p tsconfig.json && cp src/http/settings.html dist/http/ && cp src/classify/eval/cases.json dist/classify/eval/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "dev": "node --experimental-strip-types --no-warnings src/main.ts"
+    "dev": "pnpm build && node dist/main.js",
+    "eval": "pnpm build && node dist/classify/eval/run.js"
   },
   "dependencies": {
     "dbus-next": "^0.10.2"

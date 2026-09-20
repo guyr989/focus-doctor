@@ -1,0 +1,114 @@
+{
+  "threshold": 0.6,
+  "note": "Only clear-cut cases belong here. If a title is genuinely arguable for a human, it is not ground truth and does not belong in the set.",
+  "baseline": {
+    "model": "qwen2.5:3b",
+    "onTaskKept": 12,
+    "offTaskCaught": 7,
+    "measured": "2026-09-20, work/fun prompt, case-preserving input, threshold 0.6"
+  },
+  "suites": [
+    {
+      "task": "build Focus Doctor — the GNOME focus tracker in this repo (TypeScript daemon, shell extension, CLI)",
+      "cases": [
+        {
+          "title": "chain.ts — focus-doctor — VS Code",
+          "label": "on"
+        },
+        {
+          "title": "GitHub - guyr989/focus-doctor",
+          "label": "on"
+        },
+        {
+          "title": "tmux new -s focus-doctor",
+          "label": "on"
+        },
+        {
+          "title": "node:sqlite | Node.js v25 documentation",
+          "label": "on"
+        },
+        {
+          "title": "Stack Overflow — how to export a D-Bus name from a GNOME extension",
+          "label": "on"
+        },
+        {
+          "title": "Ollama logprobs API reference",
+          "label": "on"
+        },
+        {
+          "title": "guyr989/focus-doctor — Pull request #4",
+          "label": "on"
+        },
+        {
+          "title": "Terminal — pnpm test",
+          "label": "on"
+        },
+        {
+          "title": "Netflix — Stranger Things",
+          "label": "off"
+        },
+        {
+          "title": "YouTube - cat compilation 2026",
+          "label": "off"
+        },
+        {
+          "title": "Reddit — r/aww",
+          "label": "off"
+        },
+        {
+          "title": "Steam — Library",
+          "label": "off"
+        },
+        {
+          "title": "Booking.com — hotels in Lisbon",
+          "label": "off"
+        },
+        {
+          "title": "ESPN — Premier League scores",
+          "label": "off"
+        },
+        {
+          "title": "Amazon.com — running shoes",
+          "label": "off"
+        },
+        {
+          "title": "Instagram",
+          "label": "off"
+        }
+      ]
+    },
+    {
+      "task": "write the Q3 investor update",
+      "cases": [
+        {
+          "title": "Q3 investor update - Google Docs",
+          "label": "on"
+        },
+        {
+          "title": "Q3_revenue.xlsx - LibreOffice Calc",
+          "label": "on"
+        },
+        {
+          "title": "Gmail - Re: numbers for the board deck",
+          "label": "on"
+        },
+        {
+          "title": "Stripe Dashboard — Revenue",
+          "label": "on"
+        },
+        {
+          "title": "Twitch — Just Chatting",
+          "label": "off"
+        },
+        {
+          "title": "Spotify — Discover Weekly",
+          "label": "off"
+        },
+        {
+          "title": "Zillow — homes for sale",
+          "label": "off"
+        }
+      ]
+    }
+  ]
+}
