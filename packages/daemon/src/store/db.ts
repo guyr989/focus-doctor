@@ -147,6 +147,12 @@ export class Store {
       .run(s.ts, s.app, s.title, s.host, s.verdict, s.taskId, Math.round(s.driftSeconds));
   }
 
+  /** unix seconds of the last sample that carried a site, i.e. the last time a browser reported a tab. */
+  lastTabAt(): number | null {
+    const row = this.db.prepare('SELECT MAX(ts) AS ts FROM samples WHERE host IS NOT NULL').get() as {ts: number | null};
+    return row.ts ?? null;
+  }
+
   getVerdict(key: string): VerdictRow | null {
     const row = this.db
       .prepare('SELECT key, task_id AS taskId, verdict, probability, reason, created_at AS createdAt FROM verdicts WHERE key = ?')

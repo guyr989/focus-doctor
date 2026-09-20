@@ -65,6 +65,12 @@ async function doctor(): Promise<void> {
     ok(`database writable (${config.dbPath})`, true);
     ok('an active task exists', activeTask(store.tasks()) !== null, 'focus init   (or: focus task add "what you should be doing")');
     ok('at least one rule exists', store.rules().length > 0, 'focus rule add youtube.com');
+    const lastTab = store.lastTabAt();
+    ok(
+      'browser extension reporting',
+      lastTab !== null && Date.now() / 1000 - lastTab < 86400,
+      'load packages/browser-extension unpacked (chrome://extensions → Developer mode → Load unpacked), then switch a tab',
+    );
     const model = new Settings(store).get('ollama_model');
     const llm = await new OllamaClassifier({url: config.ollamaUrl, model, timeoutMs: 2000}).available();
     ok(`ollama reachable at ${config.ollamaUrl}`, llm.ok, 'curl -fsSL https://ollama.com/install.sh | sh   (needs sudo)');
