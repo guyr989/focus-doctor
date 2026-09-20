@@ -1,5 +1,5 @@
 [Unit]
-Description=Focus Monitor daemon
+Description=Focus Doctor daemon
 After=graphical-session.target
 PartOf=graphical-session.target
 

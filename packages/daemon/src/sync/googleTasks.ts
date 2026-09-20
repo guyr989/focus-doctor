@@ -41,7 +41,7 @@ export class GoogleTasks {
       let redirect = '';
       const server = createServer((req, res) => {
         const c = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams.get('code');
-        res.end(c ? 'Focus Monitor is connected to Google Tasks. You can close this tab.' : 'missing code');
+        res.end(c ? 'Focus Doctor is connected to Google Tasks. You can close this tab.' : 'missing code');
         server.close();
         c ? resolve({code: c, redirect}) : reject(new Error('no code in callback'));
       }).listen(0, '127.0.0.1', () => {
