@@ -3,7 +3,7 @@
   "name": "Focus Doctor",
   "version": "0.1.0",
   "description": "Tells the local focus-doctor daemon which site is in your active tab. Sends only the site name and page title, never the full URL, and only to 127.0.0.1.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "alarms"],
   "host_permissions": ["http://127.0.0.1/*"],
   "background": {"service_worker": "background.js"}
 }

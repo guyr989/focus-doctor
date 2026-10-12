@@ -13,6 +13,15 @@ const BROWSERS = ['chrome', 'chromium', 'brave', 'firefox', 'edge'];
 const isBrowser = (app: string | null) => !!app && BROWSERS.some(b => app.toLowerCase().includes(b));
 const SNOOZE_PRESETS = [5, 10, 15, 30, 60];
 
+/** The extension reports every 30 s while a tab is active; three missed beats and its last report is stale. */
+export const TAB_TTL_MS = 90_000;
+
+/** A browser window takes its site from the extension's report, but only while that report is fresh. */
+export function withTab(window: Signal, tab: Tab | null, tabAgeMs: number): Signal {
+  if (!isBrowser(window.app) || !tab || tabAgeMs > TAB_TTL_MS) return window;
+  return {...window, host: tab.host, pageTitle: tab.pageTitle};
+}
+
 export interface DaemonDeps {
   shell: Shell;
   store: Store;
@@ -31,6 +40,7 @@ export class Daemon {
   private readonly log: (msg: string) => void;
   private window: Signal | null = null;
   private tab: Tab | null = null;
+  private tabAt = 0;
   private taskId: number | null = null;
   private timer: NodeJS.Timeout | null = null;
   private ticking = false;
@@ -43,8 +53,10 @@ export class Daemon {
   }
 
   onTab(t: Tab): void {
+    const changed = t.host !== this.tab?.host || t.pageTitle !== this.tab?.pageTitle;
     this.tab = t;
-    void this.tick();
+    this.tabAt = this.now();
+    if (changed) void this.tick();
   }
 
   async start(): Promise<void> {
@@ -71,10 +83,8 @@ export class Daemon {
     this.escalator.opts = {thresholds: s.get('thresholds').split(',').map(Number), cooldownSeconds: s.number('cooldown_seconds')};
   }
 
-  private currentSignal(): Signal | null {
-    if (!this.window) return null;
-    if (!isBrowser(this.window.app) || !this.tab) return this.window;
-    return {...this.window, host: this.tab.host, pageTitle: this.tab.pageTitle};
+  private currentSignal(now: number): Signal | null {
+    return this.window && withTab(this.window, this.tab, now - this.tabAt);
   }
 
   private levelCap(now: number): number {
@@ -96,7 +106,7 @@ export class Daemon {
     this.applySettings();
     await this.flushSync();
     const task = activeTask(this.deps.store.tasks());
-    const signal = this.currentSignal();
+    const signal = this.currentSignal(now);
     const idleMs = await this.deps.shell.idleMs();
     if (!task || !signal || idleMs > this.deps.settings.number('idle_after_seconds') * 1000) {
       this.engine.update('idle', now);
@@ -107,7 +117,7 @@ export class Daemon {
       this.engine.reset();
       this.escalator.reset();
     }
-    const verdict = await this.deps.classifier.classify(signal, task, this.deps.store.rules(Math.floor(now / 1000)), now);
+    const {verdict, reason} = await this.deps.classifier.classify(signal, task, this.deps.store.rules(Math.floor(now / 1000)), now);
     const drift = this.engine.update(verdict, now);
     this.deps.store.recordSample({
       ts: Math.floor(now / 1000),
@@ -115,6 +125,7 @@ export class Daemon {
       title: signal.title,
       host: signal.host ?? null,
       verdict,
+      reason,
       taskId: task.id,
       driftSeconds: drift,
     });
@@ -146,7 +157,7 @@ export class Daemon {
 
   private onAction(action: OverlayAction): void {
     const task = activeTask(this.deps.store.tasks());
-    const signal = this.currentSignal();
+    const signal = this.currentSignal(this.now());
     if (!task || !signal) return;
     const effect = applyAction(this.deps.store, action, {task, signal, nowMs: this.now()});
     if (effect.resetDrift) {
