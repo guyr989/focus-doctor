@@ -27,6 +27,7 @@ export interface Sample {
   title: string | null;
   host: string | null;
   verdict: Verdict;
+  reason: string;
   taskId: number;
   driftSeconds: number;
 }
@@ -43,7 +44,7 @@ export interface VerdictRow {
 export class Store {
   private constructor(private readonly db: DatabaseSync) {
     db.exec(SCHEMA);
-    for (const sql of ['ALTER TABLE rules ADD COLUMN expires_at INTEGER', 'ALTER TABLE verdicts ADD COLUMN probability REAL', "ALTER TABLE rules ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'"]) {
+    for (const sql of ['ALTER TABLE rules ADD COLUMN expires_at INTEGER', 'ALTER TABLE verdicts ADD COLUMN probability REAL', "ALTER TABLE rules ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'", "ALTER TABLE samples ADD COLUMN reason TEXT NOT NULL DEFAULT ''"]) {
       try {
         db.exec(sql);
       } catch {}
@@ -143,8 +144,20 @@ export class Store {
 
   recordSample(s: Sample): void {
     this.db
-      .prepare('INSERT INTO samples (ts, app, title, host, verdict, task_id, drift_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(s.ts, s.app, s.title, s.host, s.verdict, s.taskId, Math.round(s.driftSeconds));
+      .prepare('INSERT INTO samples (ts, app, title, host, verdict, reason, task_id, drift_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(s.ts, s.app, s.title, s.host, s.verdict, s.reason, s.taskId, Math.round(s.driftSeconds));
+  }
+
+  /** How many of the latest samples were actually decided, and the commonest reason the rest were not. */
+  judged(limit = 120): {judged: number; total: number; topReason: string | null} {
+    const recent = 'SELECT verdict, reason FROM samples ORDER BY id DESC LIMIT ?';
+    const {total, unknown} = this.db
+      .prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(verdict = 'unknown'), 0) AS unknown FROM (${recent})`)
+      .get(limit) as {total: number; unknown: number};
+    const top = this.db
+      .prepare(`SELECT COALESCE(NULLIF(reason, ''), 'unrecorded') AS reason, COUNT(*) AS n FROM (${recent}) WHERE verdict = 'unknown' GROUP BY 1 ORDER BY n DESC LIMIT 1`)
+      .get(limit) as {reason: string} | undefined;
+    return {judged: total - unknown, total, topReason: top?.reason ?? null};
   }
 
   /** unix seconds of the last sample that carried a site, i.e. the last time a browser reported a tab. */

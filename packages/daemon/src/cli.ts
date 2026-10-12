@@ -71,6 +71,12 @@ async function doctor(): Promise<void> {
       lastTab !== null && Date.now() / 1000 - lastTab < 86400,
       'load packages/browser-extension unpacked (chrome://extensions → Developer mode → Load unpacked), then switch a tab',
     );
+    const j = store.judged();
+    ok(
+      j.total ? `${j.judged} of the last ${j.total} windows were judged` : 'windows judged — no samples yet',
+      j.total === 0 || j.judged * 2 >= j.total,
+      j.topReason ? `most were not judged because: ${j.topReason}` : '',
+    );
     const model = new Settings(store).get('ollama_model');
     const llm = await new OllamaClassifier({url: config.ollamaUrl, model, timeoutMs: 2000}).available();
     ok(`ollama reachable at ${config.ollamaUrl}`, llm.ok, 'curl -fsSL https://ollama.com/install.sh | sh   (needs sudo)');
