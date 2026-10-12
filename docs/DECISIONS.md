@@ -138,3 +138,15 @@ Newest at the bottom. "Seam" = the one file to edit to swap the choice.
 - **The gate:** `packages/daemon/src/classify/eval/` — `cases.json` (only clear-cut titles; arguable ones are not ground truth) and `run.ts`, which imports the real `OllamaClassifier` so it measures the prompt that ships. `pnpm eval` exits non-zero below the recorded baseline; `pnpm eval <model>` scores any pulled model. There is no CI, so this is a convention, not a hard block — run it before touching `ollama.ts` or the threshold.
 - **Also fixed on the way:** `pnpm dev` never worked — Node's type stripping doesn't rewrite `./x.js` imports to `.ts`. `dev` and `eval` now run the built output.
 - **Switch cost:** the prompt is four lines in `ollama.ts`; a different model is one setting; both are re-scored in two minutes.
+
+## D25 — A tab report expires; the extension heartbeats (2026-10-12)
+- **What was wrong:** the daemon kept the last `/tab` report forever and stamped it on every browser-focused sample until the next one. Seen live on 2026-09-20: a single test POST of `netflix.com` made nine Chrome samples — WhatsApp, the Extensions page — match the global `deny: netflix.com` and contributed to a false level-1. A disabled or crashed extension would do the same with whatever site you visited last.
+- **Chosen:** the extension re-reports every 30 s via `chrome.alarms` (the only timer that survives the service worker sleeping; 0.5 min is Chrome's floor) and the daemon ignores a report older than `TAB_TTL_MS` = 90 s — three missed beats. A report that doesn't change host or title no longer triggers a tick, so the heartbeat doesn't double the sample rate.
+- **Rejected:** no TTL, clear on every window change (a browser-to-browser switch loses the site for 30 s); daemon-side polling of the extension (there is no channel in that direction).
+- **Switch cost:** `withTab()` in `daemon.ts` is five lines; the heartbeat is two in `background.js`.
+
+## D26 — `unknown` carries a reason and `focus doctor` reports it (2026-10-12)
+- **What was wrong:** the chain returned `unknown` for "Ollama isn't installed", "the request timed out" and "the model couldn't decide" alike, and the daemon treated all three as on-task. Failing open is right; being silent about it is how a never-working classifier stayed invisible for weeks of samples.
+- **Chosen:** `classify()` returns `{verdict, reason}` — `rule`, `off 0.93`, `off 0.93 (cache)`, `no llm configured`, `llm disabled`, `fetch failed`, `timeout`, `no decision` — and the reason is stored on every sample (`samples.reason`). `focus doctor` adds "N of the last 120 windows were judged", red below half, with the commonest reason as the hint.
+- **Rejected:** a separate `unjudged` verdict (the drift engine treats it as on-task anyway; a reason string is the information, a fourth enum value is not); logging only (the journal is not where you look when the tool seems fine).
+- **Switch cost:** one column, one `Store.judged()` query, one line in the doctor.
